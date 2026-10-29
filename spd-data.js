@@ -36,6 +36,40 @@
     return out;
   }
 
+  function identityKeys(company, name, email) {
+    var c = companyKey(company);
+    var keys = [];
+    if (!c) return keys;
+    var e = companyKey(email);
+    var n = companyKey(name);
+    if (e) keys.push(c + "|e|" + e);
+    if (n) keys.push(c + "|n|" + n);
+    return keys;
+  }
+
+  function indexRep(map, row) {
+    if (!row) return;
+    var keys = identityKeys(row.company, row.repName, row.repEmail);
+    for (var k = 0; k < keys.length; k++) map[keys[k]] = row;
+  }
+
+  function findRepMatch(map, reps, company, contact) {
+    var c = companyKey(company);
+    if (!c) return null;
+    var email = companyKey(contact && contact.email);
+    var name = companyKey(contact && contact.name);
+    if (email && map[c + "|e|" + email]) return map[c + "|e|" + email];
+    if (name && map[c + "|n|" + name]) return map[c + "|n|" + name];
+    // Reuse a single blank placeholder row for this company when present.
+    var blanks = [];
+    for (var i = 0; i < reps.length; i++) {
+      var row = reps[i];
+      if (companyKey(row && row.company) !== c) continue;
+      if (!text(row.repName) && !text(row.repEmail)) blanks.push(row);
+    }
+    return blanks.length === 1 ? blanks[0] : null;
+  }
+
   function mergeRepContacts(existingReps, databaseContacts, idFactory) {
     var existing = Array.isArray(existingReps) ? existingReps : [];
     var incoming = Array.isArray(databaseContacts) ? databaseContacts : [];
@@ -43,35 +77,20 @@
       return "rep-" + Math.random().toString(36).slice(2, 10);
     };
     var reps = existing.map(cloneRow);
-    var byCompany = Object.create(null);
-    var i, key, row;
-    for (i = 0; i < reps.length; i++) {
-      key = companyKey(reps[i] && reps[i].company);
-      if (key && !byCompany[key]) byCompany[key] = reps[i];
-    }
+    var byIdentity = Object.create(null);
+    var i, row;
+    for (i = 0; i < reps.length; i++) indexRep(byIdentity, reps[i]);
     var kept = [];
     var skipped = 0;
     for (i = 0; i < incoming.length; i++) {
       var contact = incoming[i];
       if (!contact || typeof contact !== "object") { skipped++; continue; }
       var company = text(contact.company);
-      key = companyKey(company);
-      if (!key) { skipped++; continue; }
-      var target = byCompany[key];
+      if (!companyKey(company)) { skipped++; continue; }
+      var target = findRepMatch(byIdentity, reps, company, contact);
       if (!target) {
         target = { id: makeId(), company: company, repName: "", repPhone: "", repEmail: "", notes: "" };
         reps.push(target);
-        byCompany[key] = target;
-      }
-      // A company can have several people. Never mix their contact details.
-      var sameName = companyKey(target.repName) === companyKey(contact.name);
-      var sameEmail = text(target.repEmail) && companyKey(target.repEmail) === companyKey(contact.email);
-      if ((text(target.repName) && text(contact.name) && !sameName) ||
-          (text(target.repEmail) && text(contact.email) && !sameEmail) ||
-          (text(target.repName) && !text(contact.name) && !sameEmail)) {
-        kept.push({ company: company, field: "contact", existing: text(target.repName), incoming: text(contact.name) });
-        skipped++;
-        continue;
       }
       for (var f = 0; f < FIELD_MAP.length; f++) {
         var next = text(contact[FIELD_MAP[f][0]]);
@@ -86,18 +105,17 @@
         }
         target[dest] = next;
       }
+      indexRep(byIdentity, target);
     }
-    var originalBy = Object.create(null);
+    var originalById = Object.create(null);
     for (i = 0; i < existing.length; i++) {
-      key = companyKey(existing[i] && existing[i].company);
-      if (key && !originalBy[key]) originalBy[key] = existing[i];
+      if (existing[i] && existing[i].id) originalById[existing[i].id] = existing[i];
     }
     var added = [];
     var filled = [];
     for (i = 0; i < reps.length; i++) {
       row = reps[i];
-      key = companyKey(row.company);
-      var prev = originalBy[key];
+      var prev = originalById[row.id];
       if (!prev) {
         added.push({
           company: text(row.company),

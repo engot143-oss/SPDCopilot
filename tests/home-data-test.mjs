@@ -41,23 +41,45 @@ check("adds a company and fills only empty address-book fields", () => {
   assert.deepEqual(keptFields, ["notes"]);
 });
 
-check("creates one address-book row per company and does not overwrite a filled name", () => {
+check("creates one address-book row per representative and does not overwrite a filled name", () => {
   const incoming = [
     { company: "KARL STORZ", name: "Oscar Villa", phone: "", email: "oscar.villa@karlstorz.com", notes: "" },
     { company: "Karl Storz", name: "Geoff Cooper", phone: "253-549-8466", email: "geoff.cooper@karlstorz.com", notes: "second" }
   ];
   const result = SPD.mergeRepContacts([], incoming, ids());
-  assert.equal(result.reps.length, 1);
+  assert.equal(result.reps.length, 2);
   assert.equal(result.reps[0].id, "new-1");
   assert.equal(result.reps[0].company, "KARL STORZ");
   assert.equal(result.reps[0].repName, "Oscar Villa");
   assert.equal(result.reps[0].repPhone, "");
   assert.equal(result.reps[0].repEmail, "oscar.villa@karlstorz.com");
   assert.equal(result.reps[0].notes, "");
-  assert.equal(result.summary.added.length, 1);
+  assert.equal(result.reps[1].id, "new-2");
+  assert.equal(result.reps[1].company, "Karl Storz");
+  assert.equal(result.reps[1].repName, "Geoff Cooper");
+  assert.equal(result.reps[1].repPhone, "253-549-8466");
+  assert.equal(result.reps[1].repEmail, "geoff.cooper@karlstorz.com");
+  assert.equal(result.reps[1].notes, "second");
+  assert.equal(result.summary.added.length, 2);
   assert.equal(result.summary.filled.length, 0);
-  assert.ok(result.summary.kept.some((row) => row.field === "contact" && row.incoming === "Geoff Cooper"));
-  assert.equal(result.summary.skipped, 1);
+  assert.equal(result.summary.kept.length, 0);
+  assert.equal(result.summary.skipped, 0);
+});
+
+check("matches an existing person by email and still fills empty fields only", () => {
+  const existing = [{ id: "k1", company: "Karl Storz", repName: "Geoff Cooper", repPhone: "", repEmail: "geoff.cooper@karlstorz.com", notes: "keep" }];
+  const result = SPD.mergeRepContacts(existing, [
+    { company: "KARL STORZ", name: "Geoff Cooper", phone: "253-549-8466", email: "geoff.cooper@karlstorz.com", notes: "card" },
+    { company: "KARL STORZ", name: "Oscar Villa", phone: "", email: "oscar.villa@karlstorz.com", notes: "" }
+  ], ids());
+  assert.equal(result.reps.length, 2);
+  assert.equal(result.reps[0].id, "k1");
+  assert.equal(result.reps[0].repPhone, "253-549-8466");
+  assert.equal(result.reps[0].notes, "keep");
+  assert.equal(result.reps[1].repName, "Oscar Villa");
+  assert.equal(result.summary.added.length, 1);
+  assert.equal(result.summary.filled.length, 1);
+  assert.ok(result.summary.kept.some((row) => row.field === "notes"));
 });
 
 check("skips contacts with no company and matches companies that differ only by spacing", () => {
