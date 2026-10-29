@@ -21,7 +21,7 @@ function ids() {
 }
 
 check("adds a company and fills only empty address-book fields", () => {
-  const existing = [{ id: "k1", company: "Aesculap", repName: "Pat Existing", repPhone: "", repEmail: "pat@keep.test", notes: "Do not replace" }];
+  const existing = [{ id: "k1", company: "Aesculap", repName: "Hayley Dent", repPhone: "", repEmail: "hayley.dent@aesculapusa.com", notes: "Do not replace" }];
   const before = JSON.stringify(existing);
   const incoming = [{
     id: "r2", company: "AESCULAP", name: "Hayley Dent", title: "Specialist", specialty: "Healthcare Solutions",
@@ -31,14 +31,14 @@ check("adds a company and fills only empty address-book fields", () => {
   assert.equal(JSON.stringify(existing), before);
   assert.equal(result.reps.length, 1);
   assert.equal(result.reps[0].company, "Aesculap");
-  assert.equal(result.reps[0].repName, "Pat Existing");
+  assert.equal(result.reps[0].repName, "Hayley Dent");
   assert.equal(result.reps[0].repPhone, "206-573-3332");
-  assert.equal(result.reps[0].repEmail, "pat@keep.test");
+  assert.equal(result.reps[0].repEmail, "hayley.dent@aesculapusa.com");
   assert.equal(result.reps[0].notes, "Do not replace");
   assert.equal(result.summary.added.length, 0);
   assert.deepEqual(result.summary.filled, [{ company: "Aesculap", fields: [{ field: "repPhone", value: "206-573-3332" }] }]);
   const keptFields = result.summary.kept.map((row) => row.field).sort();
-  assert.deepEqual(keptFields, ["notes", "repEmail", "repName"]);
+  assert.deepEqual(keptFields, ["notes"]);
 });
 
 check("creates one address-book row per company and does not overwrite a filled name", () => {
@@ -51,13 +51,13 @@ check("creates one address-book row per company and does not overwrite a filled 
   assert.equal(result.reps[0].id, "new-1");
   assert.equal(result.reps[0].company, "KARL STORZ");
   assert.equal(result.reps[0].repName, "Oscar Villa");
-  assert.equal(result.reps[0].repPhone, "253-549-8466");
+  assert.equal(result.reps[0].repPhone, "");
   assert.equal(result.reps[0].repEmail, "oscar.villa@karlstorz.com");
-  assert.equal(result.reps[0].notes, "second");
+  assert.equal(result.reps[0].notes, "");
   assert.equal(result.summary.added.length, 1);
   assert.equal(result.summary.filled.length, 0);
-  assert.ok(result.summary.kept.some((row) => row.field === "repName" && row.incoming === "Geoff Cooper"));
-  assert.ok(result.summary.kept.some((row) => row.field === "repEmail"));
+  assert.ok(result.summary.kept.some((row) => row.field === "contact" && row.incoming === "Geoff Cooper"));
+  assert.equal(result.summary.skipped, 1);
 });
 
 check("skips contacts with no company and matches companies that differ only by spacing", () => {
@@ -142,4 +142,25 @@ check("home, manifest, and service worker are wired without icon files", () => {
   assert.equal(reps.includes("function parseEmailInfo"), true);
 });
 
+check("rejects malformed rows and injected IDs before restore", () => {
+  for (const row of [null, [], {id:"x\" onclick=\"alert(1)"}, {company:{bad:true}}]) {
+    assert.throws(() => SPD.parseBackup({data:{"supplyRepDatabase_v1":[row]}}), /invalid/);
+  }
+});
+check("restore rolls back a partial write and leaves settings untouched", () => {
+  const before={"surgicalInventory.v1":'[1]',"surgicalInventory.reps.v1":'[2]',"surgicalCopilot.idSettings.v1":'keep-key'};
+  const bag={...before};let fail=true;
+  const storage={getItem:k=>bag[k]??null,removeItem:k=>{delete bag[k]},setItem(k,v){if(k==="surgicalInventory.reps.v1"&&v==="[]"&&fail){fail=false;throw Error("quota")}bag[k]=v}};
+  const backup=SPD.buildBackup({"surgicalInventory.v1":[],"surgicalInventory.reps.v1":[]},"now");
+  assert.throws(()=>SPD.restoreBackup(storage,backup),/previous data was restored/);
+  assert.deepEqual(bag,before);
+  SPD.restoreBackup(storage,backup);
+  assert.equal(bag["surgicalInventory.v1"],"[]");assert.equal(bag[SPD.SETTINGS_KEY],"keep-key");
+});
+check("storage failure before recovery copy leaves all stores unchanged",()=>{
+  let writes=0;
+  const storage={getItem:k=>k==="surgicalCopilot.restoreRecovery.v1"?null:"old",setItem(){writes++;throw Error("quota")}};
+  assert.throws(()=>SPD.restoreBackup(storage,SPD.buildBackup({"surgicalInventory.v1":[]},"now")),/quota/);
+  assert.equal(writes,1);
+});
 console.log(passed + " passed");

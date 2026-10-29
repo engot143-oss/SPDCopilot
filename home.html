@@ -55,6 +55,7 @@ button.pri:hover{background:var(--pri2)}
   <div class="actions">
    <button type="button" class="pri" id="btnExport">Export all data</button>
    <button type="button" id="btnImport">Import backup</button>
+   <button type="button" id="btnRecovery" class="hide">Export recovery copy</button>
   </div>
   <p id="backupMsg" class="msg hide" role="status"></p>
   <input id="backupFile" class="filepick" type="file" accept="application/json,.json" aria-label="Choose a backup file">
@@ -125,7 +126,19 @@ var LABELS = {
   "surgicalCopilot.idLog.v1": "identification log entries"
 };
 
+function showRecovery() {
+  var raw = localStorage.getItem("surgicalCopilot.restoreRecovery.v1");
+  $("btnRecovery").classList.toggle("hide", !raw);
+}
+$("btnRecovery").onclick = function () {
+  var raw = localStorage.getItem("surgicalCopilot.restoreRecovery.v1");
+  if (raw) download("spd-restore-recovery.json", raw);
+};
+showRecovery();
 function importAll(file) {
+  if (localStorage.getItem("surgicalCopilot.restoreRecovery.v1")) {
+    setMsg("A previous restore needs recovery. Export its recovery copy before making further changes.", true); return;
+  }
   var reader = new FileReader();
   reader.onload = function () {
     var parsed;
@@ -141,9 +154,8 @@ function importAll(file) {
     var when = parsed.exportedAt ? " from " + parsed.exportedAt : "";
     var question = "Replace data on this device with this backup" + when + "?\n\n" + lines.join("\n") + "\n\nThe API key is not changed.";
     if (!confirm(question)) { setMsg("Import cancelled."); return; }
-    for (i = 0; i < keys.length; i++) {
-      if (Array.isArray(parsed.data[keys[i]])) localStorage.setItem(keys[i], JSON.stringify(parsed.data[keys[i]]));
-    }
+    try { SPDData.restoreBackup(localStorage, parsed); }
+    catch (e) { setMsg(e.message || "Restore failed.", true); showRecovery(); return; }
     setMsg("Backup restored.");
   };
   reader.onerror = function () { setMsg("The file could not be read.", true); };

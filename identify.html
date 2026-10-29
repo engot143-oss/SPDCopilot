@@ -105,8 +105,8 @@ ul{margin:6px 0 0;padding-left:18px}
 <div id="settingsOv" class="ov hide">
  <div class="modal" role="dialog" aria-labelledby="settingsTitle">
   <h2 id="settingsTitle">Model settings</h2>
-  <p class="mut">Paste your own key for an OpenAI-compatible chat-completions endpoint (OpenAI, xAI, or OpenRouter). The key is stored only in localStorage on this device. It is not written into the app and it is not logged. It is sent only as the Authorization header to the endpoint you set.</p>
-  <p class="mut">Do not photograph patient labels. This page does not store patient information.</p>
+  <p class="mut">Live identification sends your photo to your selected provider and may incur a charge per request. Demo mode is free. Paste your own key for an OpenAI-compatible chat-completions endpoint (OpenAI, xAI, or OpenRouter). The key is stored only in localStorage on this device. It is not written into the app and it is not logged. It is sent only as the Authorization header to the endpoint you set.</p>
+  <p class="mut">Do not photograph patient labels. This page does not automatically remove patient information.</p>
   <div class="presets">
    <button type="button" data-preset="openai">OpenAI</button>
    <button type="button" data-preset="xai">xAI</button>
@@ -866,7 +866,7 @@ async function saveFeedback(verdict, correctedName) {
     source: state.source === "demo" ? "demo" : "model",
     ai: state.result,
     correction: { verdict: verdict, name: correctedName },
-    thumbnail: await makeThumbnail(state.photo)
+    thumbnail: null
   };
   parsed.value.push(entry);
   try { localStorage.setItem(KEY_LOG, JSON.stringify(parsed.value)); }
@@ -912,7 +912,7 @@ function renderLog() {
   }
   var summary = accuracyFromLog(parsed.value);
   html += "<p>" + esc(summaryText(summary)) + "</p>";
-  html += '<p class="mut">The log stores the model answer, your correction, the time, and a small thumbnail only when that thumbnail is under 50KB. It does not store patient information or the API key.</p>';
+  html += '<p class="mut">The log stores the model answer, your correction, and the time. New feedback entries do not save photo thumbnails. Photos can contain patient information. Older thumbnails may remain in existing logs and backups. The API key is excluded.</p>';
   html += '<div class="actions"><button type="button" id="btnExport">Export CSV</button><button type="button" class="dan" id="btnClearLog">Clear log</button><button type="button" id="btnBackLog">Back</button></div></div>';
   if (!parsed.value.length) html += '<div class="panel"><p class="mut">The log is empty.</p></div>';
   else {
@@ -983,12 +983,13 @@ function saveSettings(e) {
   try { completionsUrl(baseUrl); }
   catch (err) { setText("settingsMsg", err.message, true); return; }
   if (!model) { setText("settingsMsg", "Enter a model name.", true); return; }
-  var next = { baseUrl: baseUrl, model: model, apiKey: typed || current.apiKey };
+  var endpointChanged = completionsUrl(baseUrl) !== completionsUrl(current.baseUrl);
+  var next = { baseUrl: baseUrl, model: model, apiKey: typed || (endpointChanged ? "" : current.apiKey) };
   localStorage.setItem(KEY_SETTINGS, JSON.stringify(next));
   $("apiKey").value = "";
   $("apiKey").placeholder = next.apiKey ? "Saved on this device. Paste a new key to replace it." : "Paste your API key";
   $("keyLine").textContent = next.apiKey ? "A key is saved in this browser. It is not shown again." : "No key saved.";
-  setText("settingsMsg", typed ? "Saved on this device." : (current.apiKey ? "Saved. The existing key was kept." : "Saved. No key stored yet."));
+  setText("settingsMsg", endpointChanged && !typed ? "Endpoint changed. The previous key was cleared; enter a key for this provider." : (typed ? "Saved on this device." : (next.apiKey ? "Saved. The existing key was kept." : "Saved. No key stored yet.")));
   renderKeyLine();
 }
 function removeKey() {
@@ -1028,7 +1029,7 @@ document.addEventListener("click", function (e) {
   if (!found) return;
   $("baseUrl").value = found.baseUrl;
   $("model").value = found.model;
-  setText("settingsMsg", found.label + " endpoint filled in. Save settings to keep it. The key was not changed.");
+  setText("settingsMsg", found.label + " endpoint filled in. Save settings to keep it. Changing the endpoint clears the saved key unless you enter a replacement.");
 });
 document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSettings(); });
 window.addEventListener("pagehide", stopCamera);

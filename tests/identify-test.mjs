@@ -158,7 +158,7 @@ check("page wires the banner, storage keys, and service worker", () => {
   assert.ok(html.includes("surgicalCopilot.idLog.v1"));
   assert.ok(html.includes("surgicalCopilot.idSettings.v1"));
   assert.ok(html.includes("surgicalInventory.v1"));
-  assert.ok(html.includes("does not store patient information"));
+  assert.ok(html.includes("does not automatically remove patient information"));
   const sw = fs.readFileSync(path.join(root, "sw.js"), "utf8");
   assert.ok(sw.includes("./identify.html"));
   const index = fs.readFileSync(path.join(root, "index.html"), "utf8");

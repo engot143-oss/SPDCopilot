@@ -153,8 +153,8 @@ function render(){
   const rows = instruments.filter(i => (state.filter === "All" || status(i) === state.filter) &&
     (!q || ["instrumentName","instrumentType","manufacturer","catalogNumber","distributor"].some(f => String(i[f]||"").toLowerCase().includes(q))));
   $("tableArea").innerHTML = '<div class="tw"><table><thead><tr><th>Instrument</th><th>Type</th><th>Manufacturer</th><th>Catalog #</th><th>Current</th><th>Par</th><th>Needed</th><th>Quote Req.</th><th>Ordered</th><th>Received</th><th>Status</th></tr></thead><tbody>' +
-    (rows.length ? rows.map(i => '<tr data-id="' + i.id + '"><td><b>' + esc(i.instrumentName) + '</b></td><td>' + esc(i.instrumentType) + '</td><td>' + esc(i.manufacturer) + '</td><td>' + esc(i.catalogNumber) +
-      '</td><td><span class="qty"><button data-dec="' + i.id + '" aria-label="Decrease">-</button><b>' + n(i.currentQuantity) + '</b><button data-inc="' + i.id + '" aria-label="Increase">+</button></span></td><td class="num">' + n(i.desiredQuantity) +
+    (rows.length ? rows.map(i => '<tr data-id="' + esc(i.id) + '"><td><b>' + esc(i.instrumentName) + '</b></td><td>' + esc(i.instrumentType) + '</td><td>' + esc(i.manufacturer) + '</td><td>' + esc(i.catalogNumber) +
+      '</td><td><span class="qty"><button data-dec="' + esc(i.id) + '" aria-label="Decrease">-</button><b>' + n(i.currentQuantity) + '</b><button data-inc="' + esc(i.id) + '" aria-label="Increase">+</button></span></td><td class="num">' + n(i.desiredQuantity) +
       '</td><td class="num">' + quantityNeeded(i) + '</td><td class="num">' + n(i.quantityRequestedForQuote) + '</td><td class="num">' + n(i.quantityOrdered) + '</td><td class="num">' + n(i.quantityReceived) + '</td><td>' + badge(status(i)) + (i.statusOverride ? ' <span class="mut" title="Manual override">*</span>' : "") + "</td></tr>").join("")
      : '<tr><td colspan="11" class="mut" style="text-align:center;padding:24px">No instruments match the current search or filter.</td></tr>') + "</tbody></table></div>";
 }
@@ -164,7 +164,7 @@ function renderReps(){
   $("repsArea").innerHTML = reps.length ? '<div class="tw"><table><thead><tr><th>Company</th><th>Rep name</th><th>Phone</th><th>Email</th><th>Notes</th><th>Linked instruments</th><th></th></tr></thead><tbody>' +
     reps.map(r => '<tr><td><b>' + esc(r.company) + '</b></td><td>' + (r.repName ? esc(r.repName) : '<span class="mut">Add rep name</span>') + '</td><td>' + (r.repPhone ? esc(r.repPhone) : '<span class="mut">Add phone</span>') +
       '</td><td>' + (r.repEmail ? '<a href="mailto:' + esc(r.repEmail) + '">' + esc(r.repEmail) + '</a>' : '<span class="mut">Add email</span>') + '</td><td>' + esc(r.notes) + '</td><td class="num">' + linkedCount(r.company) +
-      '</td><td><button data-editrep="' + r.id + '">Edit</button> <button class="dan" data-delrep="' + r.id + '">Delete</button></td></tr>').join("") + "</tbody></table></div>"
+      '</td><td><button data-editrep="' + esc(r.id) + '">Edit</button> <button class="dan" data-delrep="' + esc(r.id) + '">Delete</button></td></tr>').join("") + "</tbody></table></div>"
     : '<div class="empty"><h2>No companies in the address book</h2><button class="pri" data-act="addrep">Add company</button></div>';
 }
 
@@ -185,7 +185,7 @@ function showDetail(id){
     kv("Quoted price", i.quotedPrice) + kv("Qty ordered", n(i.quantityOrdered)) + kv("Order date", i.orderDate) + kv("PO #", i.purchaseOrderNumber) + kv("Qty received", n(i.quantityReceived)) + kv("Received date", i.receivedDate) +
     kv("Awaiting approval", i.awaitingApproval ? "Yes" : "No") + "</div>" +
     '<h3>Derived</h3><div class="grid kv">' + kv("Outstanding order (auto)", outstandingOrder(i)) + kv("Auto status", autoStatus(i)) + kv("Status override", i.statusOverride || "Auto") + kv("Effective status", status(i)) + "</div>" +
-    '<div class="actions"><button class="dan" data-delinst="' + i.id + '">Delete</button><button data-pull="' + i.id + '">Pull from address book</button><button data-editinst="' + i.id + '">Edit</button><button class="pri" data-act="close">Close</button></div>');
+    '<div class="actions"><button class="dan" data-delinst="' + esc(i.id) + '">Delete</button><button data-pull="' + esc(i.id) + '">Pull from address book</button><button data-editinst="' + esc(i.id) + '">Edit</button><button class="pri" data-act="close">Close</button></div>');
 }
 function pullFromBook(id){
   const i = instruments.find(x => x.id === id); if (!i) return;
@@ -255,7 +255,7 @@ function importRepsFromDatabase() {
   catch (err) { alert("Import failed: " + err.message); return; }
   var summary = result.summary;
   if (!summary.added.length && !summary.filled.length) { alert("Nothing new to import. Existing address-book fields were left as they are."); return; }
-  var html = "<h2>Import from Rep Database</h2><p>Names, phones, emails, and notes that already have text stay as they are. Empty fields can be filled.</p>";
+  var html = "<h2>Import from Rep Database</h2><p>Names, phones, emails, and notes that already have text stay as they are. Empty fields can be filled for the same contact. Different representatives at the same company are skipped.</p>";
   if (summary.added.length) {
     html += "<h3>New companies (" + summary.added.length + ")</h3><ul>" + summary.added.slice(0, 8).map(function (row) {
       return "<li>" + esc(row.company) + (row.repName ? " — " + esc(row.repName) : "") + "</li>";
@@ -301,9 +301,14 @@ function importJSON(file){
       const d = JSON.parse(fr.result); const inst = Array.isArray(d) ? d : d.instruments;
       if (!Array.isArray(inst)) throw new Error("No instruments array found.");
       if (!confirm("Replace current data with " + inst.length + " instrument(s)" + (Array.isArray(d.reps) ? " and " + d.reps.length + " rep(s)" : "") + " from file?")) return;
-      instruments = inst.map(normalize);
-      if (Array.isArray(d.reps)) reps = d.reps.map(r => ({ id:r.id || uid(), company:String(r.company||""), repName:String(r.repName||""), repPhone:String(r.repPhone||""), repEmail:String(r.repEmail||""), notes:String(r.notes||"") })).filter(r => r.company);
-      save(); render();
+      SPDData.validateList(KEY_INST, inst);
+      if (Array.isArray(d.reps)) SPDData.validateList(KEY_REPS, d.reps);
+      const nextInstruments = inst.map(normalize);
+      const nextReps = Array.isArray(d.reps) ? d.reps.map(r => ({ id:r.id || uid(), company:String(r.company||""), repName:String(r.repName||""), repPhone:String(r.repPhone||""), repEmail:String(r.repEmail||""), notes:String(r.notes||"") })).filter(r => r.company) : reps;
+      SPDData.restoreBackup(localStorage, {data:{[KEY_INST]:nextInstruments,[KEY_REPS]:nextReps,"supplyRepDatabase_v1":null,"surgicalCopilot.idLog.v1":null}});
+      instruments = nextInstruments;
+      reps = nextReps;
+      render();
     } catch(err){ alert("Import failed: " + err.message); } };
   fr.readAsText(file);
 }
