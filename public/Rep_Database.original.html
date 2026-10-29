@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Supply Rep Database</title>
+<style>
+:root{--navy:#17324d;--blue:#2677b8;--pale:#eef6fb;--line:#cad8e3;--red:#a83232;--green:#257a4a}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#f5f7f9;color:#17212b}header{background:linear-gradient(135deg,var(--navy),var(--blue));color:white;padding:24px 18px}header h1{margin:0;font-size:clamp(24px,5vw,36px)}header p{margin:6px 0 0;opacity:.9}.wrap{max-width:1280px;margin:auto;padding:16px}.toolbar,.panel{background:white;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px #17324d12}.toolbar,.buttonrow{display:flex;gap:10px;flex-wrap:wrap}.toolbar input{min-width:220px;flex:1}input,select,textarea,button{font:inherit;padding:11px;border:1px solid #9fb3c3;border-radius:8px}button{background:var(--blue);color:white;border:0;font-weight:650;cursor:pointer}button.secondary{background:#5d6b76}button.success{background:var(--green)}button.danger{background:var(--red)}button:focus,input:focus,select:focus,textarea:focus{outline:3px solid #78b9e777}.infoarea{width:100%;min-height:145px;resize:vertical}.hint,.message{font-size:13px;color:#52616d}.message{padding:9px;border-radius:8px;background:var(--pale);margin-top:10px}.photoPreview{display:none;max-width:280px;max-height:200px;border-radius:10px;border:1px solid var(--line);margin-top:10px}.stats{font-size:14px;color:#52616d;padding:2px 4px 12px}.tablewrap{overflow:auto;background:white;border:1px solid var(--line);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:1050px}th,td{padding:10px;border-bottom:1px solid #e0e8ee;text-align:left;vertical-align:top}th{background:var(--pale);position:sticky;top:0;z-index:1}tr:hover{background:#f8fbfd}a{color:#1267a4}.badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#e8f4e9;font-size:12px}.needs{background:#fff0cf}.conflict{background:#ffe0e0}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.grid .wide{grid-column:span 3}.actions{white-space:nowrap}.actions button{padding:6px 9px;margin:1px}.hidden{display:none}@media(max-width:700px){.grid{grid-template-columns:1fr}.grid .wide{grid-column:span 1}.toolbar button,.buttonrow button{flex:1}.tablewrap{border:0;background:transparent}table,tbody,tr,td{display:block;min-width:0}thead{display:none}tr{background:white;border:1px solid var(--line);border-radius:12px;margin-bottom:12px;padding:8px}td{border:0;padding:5px 8px}td:before{content:attr(data-label);display:block;font-size:11px;text-transform:uppercase;color:#657786;font-weight:700}.actions{white-space:normal}}
+</style>
+<script src="/ocr/tesseract.min.js"></script>
+</head><body>
+<header><div class="wrap"><h1>Supply Rep Database</h1><p>Searchable personal directory for supplier representatives and support contacts</p></div></header>
+<main class="wrap">
+<div class="toolbar"><input id="search" aria-label="Search by representative or company" placeholder="Enter representative or company name"><button id="searchBtn" type="button">Search</button><button id="clearBtn" type="button" class="secondary">Clear</button></div>
+<section class="panel"><div class="buttonrow"><button id="addBtn" class="success">Enter Contact</button><button id="photoBtn">Take Picture</button></div><input id="photoInput" class="hidden" type="file" accept="image/*" capture="environment"><div id="message" class="message hidden"></div></section>
+<div id="stats" class="stats"></div>
+<section id="editor" class="panel hidden"><h2 id="formTitle">Add contact</h2><form id="form"><input id="recordId" type="hidden"><div class="grid">
+<label>Representative Name<input id="name" required placeholder="First and last name"></label><label>Company<input id="company" required placeholder="Company name"></label><label>Products<input id="specialty" placeholder="Products or specialty"></label><label>Email<input id="email" type="email" placeholder="name@company.com"></label><label>Phone Number<input id="phone" type="tel" placeholder="Phone number"></label></div><p><button type="submit">Save contact</button> <button type="button" id="cancelBtn" class="secondary">Cancel</button></p></form></section>
+<div id="resultsPanel" class="tablewrap hidden"><table><thead><tr><th>Representative Name</th><th>Company</th><th>Products</th><th>Email</th><th>Phone Number</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table></div>
+</main>
+<script>
+const KEY='supplyRepDatabase_v1';
+const seed=[
+['KEY SURGICAL / STERIS','Jason Karrmann','Regional Manager, Consumable Sales','','952-767-7372','','Fax: 440-639-4450','','8101 Wallace Road, Eden Prairie, MN','Representative','Business card','Verified'],
+['AESCULAP','Hayley Dent','Specialist II, Healthcare Solutions','Healthcare Solutions','206-573-3332','hayley.dent@aesculapusa.com','Customer Service: 1-800-282-9000','Northwest Region','','Representative','Business card and Excel','Verified'],
+['COOPER SURGICAL','Lauren Hatteberg','','Rumi handle','','Lauren.Hatteberg@coopersurgical.com','Darrel.Celestine@coopersurgical.com','','','Representative','Excel screenshot','Needs Verification'],
+['COVIDIEN','Katie Cleveland','','','','katie.m.cleveland@medtronic.com','','','','Representative','Excel screenshot','Needs Verification'],
+['ETHICON','Jan Shimabukuro','','J & J Health Care','','jshimab@its.jnj.com','','','','Representative','Excel screenshot','Needs Verification'],
+['INTUITIVE','Justin Fearn','','Robotic','','Justin.Fearn@intusurg.com','','','','Representative','Excel screenshot','Needs Verification'],
+['INVUITY','Teresa Gans','','Cable','','teresa.gans@stryker.com','','','','Representative','Excel screenshot','Needs Verification'],
+['KARL STORZ','Oscar Villa','','','','oscar.villa@karlstorz.com','','','','Representative','Excel screenshot','Needs Verification'],
+['KARL STORZ','Geoff Cooper','Sales Executive, Head and Neck Management','Head & Neck','253-549-8466','geoff.cooper@karlstorz.com','','','2151 E. Grand Avenue, El Segundo, CA 90245-5017','Representative','Business card','Verified'],
+['KARL STORZ','Customer Portal','Customer support / portal','Orders, service, pricing, inventory','','customerportal@karlstorz.com','','','','General Support','Portal card','Verified'],
+['OLYMPUS','Tom Short','','','','tom.short@olympus.com','','','','Representative','Excel screenshot','Needs Verification'],
+['OLYMPUS','Timothy Stack','','SPU supplies','','timothy.stack@olympus.com','','','','Representative','Excel screenshot','Needs Verification'],
+['SCOPE REPAIR','Jason Davis','','DaVinci, Olympus, Storz','','Jason.Davis@overlakehospital.org','','','','Internal','Excel screenshot','Needs Verification'],
+['STERIS','Scott Fitzwilson','','Snowden-Pencer, V. Mueller','','scott_fitzwilson@steris.com','','','','Representative','Excel screenshot','Needs Verification'],
+['STRYKER ENDOSCOPY','Alex Schoomaker','','Camera, scopes, laparoscopic instruments','','alex.schoonmaker@stryker.com','','','','Representative','Excel screenshot; surname/email spelling differs','Conflict'],
+['TELEFLEX / PILLING','Gina Pozza','','','','gina.pozza@teleflex.com','heather.doneth@teleflex.com; erica.smith@teleflex.com','','','Representative','Excel screenshot','Needs Verification'],
+['MEDAXIS SOLUTIONS / SHUKLA MEDICAL','Jared Pocock','Principal; Sales & Service','Orthopedic extraction technologies','425-998-3660','jpocock@medaxissolutions.com','','Western Washington / Alaska','','Representative','Business cards and Excel','Verified'],
+['MED ALLIANCE LLC','Pam Harned','','Delacroix-Chevalier','','pamelaharned@gmail.com','','','','Representative','Excel screenshot','Needs Verification'],
+['WILSON MEDICAL SPECIALTIES','Travis Galloway','Sales Associate','Scanlan','509-993-3178','travis@wilsonmed.com','','Western WA','','Representative','Business card and Excel','Verified'],
+['MARINA','Tom Leuci','','','','tom@marinamedical.com','','','','Representative','Excel screenshot','Needs Verification'],
+['GE HEALTHCARE SVG','Marc Malloy','','BK Medical','','Marc.Malloy@gehealthcare.com','','','','Representative','Excel screenshot','Needs Verification'],
+['WILSON MEDICAL','Mark Nunez','','Borescope','','mark@wilsonmed.com','','','','Representative','Excel screenshot','Needs Verification'],
+['MEDLINE (BULK)','Cody Chagnon','','Plastic bowel clamp','','CChagnon@medline.com','','','','Representative','Excel screenshot','Needs Verification'],
+['UROLOGY CLINIC','Anna Holmes','','Urology clinic','','Anna.Holmes@overlakehospital.org','','','','Internal','Excel screenshot','Needs Verification'],
+['E.R.','Alice Cloutier','','','','Alice.Cloutier@overlakehospital.org','','','','Internal','Excel screenshot','Needs Verification'],
+['BOSTON SCIENTIFIC',"Matt O'Connell",'','American Medicals','','Matt.oconnell@bsci.com','','','','Representative','Excel screenshot','Needs Verification'],
+['HENRY SCHEIN','Stephen Williams','','Hu Friedy','','stephen.williams@henryschein.com','','','','Representative','Excel screenshot','Needs Verification'],
+['ASPEN SURGICAL','Seth Schnurman','','Symmetry, Codman, Aspen','','Seth.Schnurman@aspensurgical.com','','','','Representative','Excel screenshot','Needs Verification'],
+['CORZA MEDICAL','Kinsey Switalski','','Eye sets (Katena)','','Kinsey.Switalski@corza.com','','','','Representative','Excel screenshot','Needs Verification'],
+['RICHARD WOLF MEDICAL','Graham Wohlers','','Lap cord','','graham@medworksurgical.com','','','','Representative','Excel screenshot','Needs Verification'],
+['COAST MEDICAL','Mark Locken','','Terumo Cardiovascular','425-881-4274','Mark.Locken@comcast.net','Coast.medicalnw@msn.com','','','Representative','Excel screenshot','Needs Verification'],
+['DAY SURGICAL','Krystal Finley','','Fehling','','CustServ@daycurgical.com','','','','General Support','Excel screenshot; domain may be misspelled','Conflict'],
+['BARD PERIPHERAL VASCULAR, INC.','Annie Goodwin','','CR Bard','','Annie.Goodwin@bd.com','','','','Representative','Excel screenshot','Needs Verification'],
+['BOSS','Susan Thompson','','','','susanthompson@bossinst.com','','','','Representative','Excel screenshot','Needs Verification'],
+['BOSS','Brandon Caldwell','','Versalight cable, instruments','','brandon@tapmedicalproducts.com','','','','Representative','Excel screenshot','Needs Verification'],
+['HEALTHMARK','Matt Meldrum','','','','Matt.Meldrum@mmeldrum@hmark.com','webquote@hmarkrpt.com; CMHicks@millenniumsurgical.com; bkarges@hmark.com','','','Representative','Excel screenshot; primary email malformed','Conflict'],
+['KLS MARTIN','Brad Carey','','Maxillary mandibular set','','bcarey@klsmartin.com','','','','Representative','Excel screenshot','Needs Verification'],
+['BIOMET MICROFIXATION','','','Tessier retractor; Walter Lorenz','','fxjax-orders@zimmerbiomet.com','','','','General Support','Excel screenshot','Needs Verification'],
+['BIOMET MICROFIXATION','Courtney Hall','','','','Courtney.hall@zimmerbiomet.com','','','','Representative','Excel screenshot','Needs Verification'],
+['CONMED','Johnny Hendrickson','','Linvatec','','JohnnyHendrickson@conmed.com','','','','Representative','Excel screenshot','Needs Verification'],
+['FCI OPHTHALMICS','','','','','Orders@fci-ophthalmics.com','','','','General Support','Excel screenshot','Needs Verification'],
+['PROCEPT BIOROBOTICS','Ron Lucero','Senior Aquablation Sales Representative','Aquablation','206-734-8205','r.lucero@procept-biorobotics.com','','','','Representative','Clear business card','Verified'],
+['MEDTRONIC','David Schinkel','Area Sales Manager','Cranial and Spinal Technologies','253-468-1250','dave.a.schinkel@medtronic.com','','','','Representative','Business card','Verified'],
+['BPI MEDICAL','Ben Overmars, Jr.','Vice President, Key Account Sales; Director of Training','','253-224-5794','ben@bpimedical.com','800-550-2367; Fax 253-883-5041','','','Representative','Business card','Verified'],
+['VTI, VASCULAR TECHNOLOGY','Joel Dooley','Surgical Sales Manager','Vascular','603-594-9700; Mobile 425-591-5508','jdooley@vti-online.com','','','','Representative','Business card','Verified']
+].map((r,i)=>({id:'r'+(i+1),company:r[0],name:r[1],title:r[2],specialty:r[3],phone:r[4],email:r[5],secondary:r[6],region:r[7],address:r[8],contactType:r[9],source:r[10],status:r[11],notes:'',updated:'2026-09-01'}));
+let storageAvailable=true,storedData=null;try{storedData=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){storageAvailable=false}let data=Array.isArray(storedData)?storedData:seed;const jason=seed[0];if(!data.some(x=>normalize(x.name)==='jason karrmann')){data.unshift(jason);try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){storageAvailable=false}}let activeQuery='';const $=id=>document.getElementById(id);const fields=['name','company','specialty','email','phone'];
+function normalize(s=''){return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}function save(){if(storageAvailable){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){storageAvailable=false}}render()}function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function render(){if(!activeQuery){$('resultsPanel').classList.add('hidden');$('stats').textContent='';$('rows').innerHTML='';return}let terms=normalize(activeQuery).split(/\s+/).filter(Boolean);let list=data.filter(x=>{let searchable=normalize(`${x.company||''} ${x.name||''}`);return terms.every(term=>searchable.includes(term))});$('resultsPanel').classList.remove('hidden');$('stats').textContent=`${list.length} result${list.length===1?'':'s'} for “${activeQuery}”`;const labels=['Representative Name','Company','Products','Email','Phone Number','Actions'];$('rows').innerHTML=list.map(x=>{let email=x.email&&x.email.split('@').length===2?`<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>`:esc(x.email);return `<tr><td data-label="${labels[0]}"><strong>${esc(x.name)}</strong></td><td data-label="${labels[1]}">${esc(x.company)}</td><td data-label="${labels[2]}">${esc(x.specialty)}</td><td data-label="${labels[3]}">${email}</td><td data-label="${labels[4]}">${esc(x.phone)}</td><td data-label="${labels[5]}" class="actions"><button onclick="editRec('${x.id}')">Edit</button> <button class="danger" onclick="delRec('${x.id}')">Delete</button></td></tr>`}).join('');if(!list.length)$('rows').innerHTML='<tr><td colspan="6">No representative or company matched your search.</td></tr>'}
+function emailKey(value=''){let v=normalize(value);return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)?v:''}
+function phoneKey(value=''){let digits=String(value).replace(/\D/g,'').replace(/^1(?=\d{10}$)/,'');return digits.length===10?digits:''}
+function duplicateReason(a,b){let ae=emailKey(a.email),be=emailKey(b.email);if(ae&&be&&ae===be)return'email';let an=normalize(a.name),bn=normalize(b.name),ac=normalize(a.company),bc=normalize(b.company);if(an&&bn&&ac&&bc&&an===bn&&ac===bc)return'name and company';let ap=phoneKey(a.phone),bp=phoneKey(b.phone);if(ap&&bp&&ap===bp&&an&&bn&&an===bn)return'name and phone';return''}
+function exactContact(a,b){return fields.every(k=>normalize(a[k])===normalize(b[k]))}
+function combineProducts(a='',b=''){let values=[],seen=new Set;for(const item of `${a},${b}`.split(/[,;]+/).map(x=>x.trim()).filter(Boolean)){let key=normalize(item);if(!seen.has(key)){seen.add(key);values.push(item)}}return values.join(', ')}
+function mergeContact(saved,incoming){return{...saved,name:incoming.name||saved.name,company:incoming.company||saved.company,specialty:combineProducts(saved.specialty,incoming.specialty),email:incoming.email||saved.email,phone:incoming.phone||saved.phone}}
+function noConflict(a,b){return['name','company','email','phone'].every(k=>!a[k]||!b[k]||normalize(a[k])===normalize(b[k])||(k==='phone'&&phoneKey(a[k])&&phoneKey(a[k])===phoneKey(b[k])))}
+function cleanDuplicates(list){let kept=[],removed=0;for(const contact of list){let exact=kept.findIndex(x=>exactContact(x,contact));if(exact>=0){removed++;continue}let match=kept.findIndex(x=>duplicateReason(x,contact)&&noConflict(x,contact));if(match>=0){kept[match]=mergeContact(kept[match],contact);removed++;continue}kept.push(contact)}return{kept,removed}}
+function showMessage(text){$('message').classList.remove('hidden');$('message').textContent=text}
+{let cleaned=cleanDuplicates(data);if(cleaned.removed){data=cleaned.kept;if(storageAvailable){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){storageAvailable=false}}showMessage(`${cleaned.removed} duplicate contact${cleaned.removed===1?' was':'s were'} combined automatically.`)}}
+function blankForm(){ $('form').reset();$('recordId').value='' }function openForm(){ $('editor').classList.remove('hidden');$('editor').scrollIntoView({behavior:'smooth'}) } window.editRec=id=>{let x=data.find(v=>v.id===id);$('recordId').value=id;fields.forEach(f=>$(f).value=x[f]||'');$('formTitle').textContent='Edit contact';openForm()};window.delRec=id=>{if(confirm('Delete this contact?')){data=data.filter(x=>x.id!==id);save();showMessage('Contact deleted.')}};$('addBtn').onclick=()=>{blankForm();$('formTitle').textContent='Enter contact manually';openForm()};$('cancelBtn').onclick=()=> $('editor').classList.add('hidden');$('form').onsubmit=e=>{e.preventDefault();let id=$('recordId').value||'r'+Date.now();let i=data.findIndex(x=>x.id===id);let obj=i>=0?{...data[i],id}:{id};fields.forEach(f=>obj[f]=$(f).value.trim());let matchIndex=data.findIndex(x=>x.id!==id&&duplicateReason(x,obj));if(matchIndex>=0){let duplicate=data[matchIndex];if(exactContact(duplicate,obj)){showMessage(`${duplicate.name||duplicate.company} is already saved. No duplicate was added.`);$('editor').classList.add('hidden');activeQuery=obj.name||obj.company;render();return}let changed=fields.filter(k=>obj[k]&&duplicate[k]&&normalize(obj[k])!==normalize(duplicate[k])).map(k=>({name:'name',company:'company',specialty:'products',email:'email',phone:'phone'}[k]));let detail=changed.length?` Different ${changed.join(', ')} will use the information you just entered.`:'';if(!confirm(`A matching contact already exists: ${duplicate.company} / ${duplicate.name}. Combine both records into one?${detail}`))return;data[matchIndex]=mergeContact(duplicate,obj);if(i>=0&&i!==matchIndex){data.splice(i,1)}save();$('editor').classList.add('hidden');showMessage(`Combined information into ${data.find(x=>x.id===duplicate.id)?.name||duplicate.name}.`);activeQuery=data[matchIndex]?.name||duplicate.name||duplicate.company;render();return}if(i>=0)data[i]=obj;else data.unshift(obj);save();$('editor').classList.add('hidden');showMessage(`Saved ${obj.company}${obj.name?' / '+obj.name:''}.`)};
+function labeled(text,names){for(const name of names){let m=text.match(new RegExp('(?:^|\\n)\\s*'+name+'\\s*[:\\-]\\s*(.+)','im'));if(m)return m[1].trim()}return ''}
+function cleanLine(value=''){return value.replace(/^[|•·*#]+|[|•·*#]+$/g,'').replace(/\s{2,}/g,' ').trim()}
+function validPerson(value=''){let words=cleanLine(value).split(/\s+/);return words.length>=2&&words.length<=4&&words.every(w=>/^[A-Za-z][A-Za-z'\-.]{1,24}$/.test(w))&&!words.some(w=>/(.)\1\1/i.test(w))}
+function validPhone(value=''){let digits=value.replace(/\D/g,'');return digits.length===10||(digits.length===11&&digits[0]==='1')}
+function formatPhone(value=''){let digits=value.replace(/\D/g,'').replace(/^1(?=\d{10}$)/,'');return digits.length===10?`${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}`:''}
+function parseInfo(text){
+  let lines=text.split(/\r?\n/).map(cleanLine).filter(Boolean);
+  let email=(text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)||[''])[0];
+  let phone=labeled(text,['direct','mobile','cell','phone','tel'])||(text.match(/(?:\+?1[\s.\-]?)?(?:\(?\d{3}\)?[\s.\-]?)\d{3}[\s.\-]\d{4}/)||[''])[0];
+  let company=labeled(text,['vendor','company','organization']);
+  let name=labeled(text,['rep(?:resentative)?','contact','name']);
+  let specialty=labeled(text,['products?','specialt(?:y|ies)','product line']);
+  const noise=/^(www\.|https?:|fax\b|phone\b|mobile\b|cell\b|tel\b|email\b)/i;
+  const job=/\b(sales|representative|specialist|manager|director|account|consultant|executive|territory|regional|president|vice president)\b/i;
+  let candidates=lines.filter(x=>!noise.test(x)&&!x.includes('@')&&!/\d{3}[\s.\-)]*\d{3}/.test(x));
+  if(!name){let emailWords=email.split('@')[0].split(/[._-]+/).filter(Boolean),emailName=emailWords.length>=2?emailWords.map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(' '):'';let person=candidates.find(x=>validPerson(x)&&!job.test(x)&&normalize(x)===normalize(emailName))||candidates.find(x=>validPerson(x)&&!job.test(x)&&x!==x.toUpperCase());name=person||emailName||''}
+  if(!validPerson(name))name='';
+  if(!company){let remaining=candidates.filter(x=>normalize(x)!==normalize(name)&&!job.test(x)&&!/^(products?|specialt(?:y|ies)|product line)\s*[:\-]/i.test(x));company=remaining.find(x=>/[A-Z]{2}/.test(x)&&x===x.toUpperCase())||remaining[0]||''}
+  if(/keysurgical\.com/i.test(text))company='Key Surgical / STERIS';
+  if(company&&(!/[A-Za-z]{2}/.test(company)||/(.)\1\1/i.test(company)))company='';
+  if(!specialty){let productLine=lines.find(x=>/^(products?|specialt(?:y|ies)|product line)\s*[:\-]/i.test(x));if(productLine)specialty=productLine.replace(/^[^:\-]+[:\-]\s*/,'')}
+  phone=validPhone(phone)?formatPhone(phone):'';
+  return{company:cleanLine(company),name:cleanLine(name),specialty:cleanLine(specialty),email:cleanLine(email),phone}
+}
+function withTimeout(promise,ms,message){return Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(message)),ms))])}
+function loadPhoto(file){
+  return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('The selected photo could not be opened.'));reader.onload=()=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('This photo format could not be opened.'));img.src=String(reader.result||'')};reader.readAsDataURL(file)})
+}
+async function prepareImage(file){
+  let img,cleanup=()=>{};try{if(typeof createImageBitmap!=='function')throw new Error('bitmap unavailable');img=await withTimeout(createImageBitmap(file),15000,'The photo took too long to open.');cleanup=()=>img.close&&img.close()}catch(firstError){img=await withTimeout(loadPhoto(file),15000,'The photo took too long to open.')}
+  const width=img.naturalWidth||img.width,height=img.naturalHeight||img.height;if(!width||!height)throw new Error('The photo has no readable dimensions.');
+  const longest=Math.max(width,height),target=longest>2200?2200:longest<1500?1500:longest,scale=target/longest;
+  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(width*scale));canvas.height=Math.max(1,Math.round(height*scale));
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)throw new Error('Image processing is not available on this device.');ctx.drawImage(img,0,0,canvas.width,canvas.height);cleanup();
+  const image=ctx.getImageData(0,0,canvas.width,canvas.height),p=image.data;for(let i=0;i<p.length;i+=4){const gray=.299*p[i]+.587*p[i+1]+.114*p[i+2],v=Math.max(0,Math.min(255,(gray-128)*1.28+128));p[i]=p[i+1]=p[i+2]=v}ctx.putImageData(image,0,0);return canvas
+}
+let ocrWorkerPromise=null;
+async function getOcrWorker(){
+  if(!window.Tesseract)throw new Error('The OCR engine did not load.');
+  if(!ocrWorkerPromise)ocrWorkerPromise=Tesseract.createWorker('eng',1,{workerPath:'/ocr/worker.min.js',corePath:'/ocr/core',langPath:'/ocr/lang',workerBlobURL:false,logger:m=>{if(m.status==='recognizing text')showMessage(`Reading the picture... ${Math.round((m.progress||0)*100)}%`)},errorHandler:error=>console.error('OCR worker error',error)}).catch(error=>{ocrWorkerPromise=null;throw error});
+  return withTimeout(ocrWorkerPromise,45000,'The OCR engine took too long to start.');
+}
+$('searchBtn').onclick=()=>{activeQuery=$('search').value.trim();render()};$('search').onkeydown=e=>{if(e.key==='Enter')$('searchBtn').click()};$('clearBtn').onclick=()=>{$('search').value='';activeQuery='';render()};
+$('photoBtn').onclick=()=>$('photoInput').click();
+$('photoInput').onchange=async e=>{
+  let f=e.target.files[0];if(!f)return;
+  blankForm();$('formTitle').textContent='Reading business card';openForm();showMessage('Opening the picture... Keep this page open.');$('photoBtn').disabled=true;
+  try{
+    if(!/^image\//i.test(f.type)&&!(/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name)))throw new Error('Please choose a photo of the business card.');
+    let prepared=await prepareImage(f);showMessage('Preparing the OCR engine...');let worker=await getOcrWorker();let result=await withTimeout(worker.recognize(prepared),60000,'Reading the card took too long.');
+    let text=(result.data.text||'').trim();
+    if(!text)throw new Error('No text detected');
+    let parsed=parseInfo(text);blankForm();fields.forEach(k=>$(k).value=parsed[k]||'');
+    $('formTitle').textContent='Review picture information';
+    let missing=fields.filter(k=>!parsed[k]).map(k=>({name:'name',company:'company',specialty:'products',email:'email',phone:'phone'}[k]));
+    $('message').textContent=missing.length?`Picture read. Check every field. Please enter or correct: ${missing.join(', ')}.`:'Picture read. Review every field, then tap Save contact.';
+    openForm();
+  }catch(err){
+    blankForm();$('formTitle').textContent='Enter picture information';openForm();
+    showMessage(`The picture could not be read: ${err&&err.message?err.message:'unknown OCR error'} You can type the contact below or retake the picture in bright, even light.`);
+  }finally{$('photoBtn').disabled=false;e.target.value=''}
+};render();
+</script></body></html>

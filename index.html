@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enrique — Surgical Instrument Inventory Tracker</title>
+<style>
+:root{--bg:#f4f7fa;--card:#fff;--ink:#1c2a39;--mut:#5d6b7a;--line:#dbe3eb;--pri:#1767a8;--pri2:#0f4f84;--dan:#b42318}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:14px 20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+header h1{font-size:19px;margin:0;font-weight:650}
+nav button{margin-left:4px}
+main{padding:16px 20px;max-width:1400px;margin:0 auto}
+button{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);padding:7px 12px;border-radius:6px;cursor:pointer}
+button:hover{border-color:var(--pri)}button.pri{background:var(--pri);color:#fff;border-color:var(--pri)}button.pri:hover{background:var(--pri2)}
+button.dan{color:var(--dan);border-color:#f0c4c0}button.active{background:var(--pri);color:#fff;border-color:var(--pri)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;cursor:pointer;text-align:left}
+.card .n{font-size:26px;font-weight:700}.card .l{color:var(--mut);font-size:13px}.card.sel{outline:2px solid var(--pri)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+input,select,textarea{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);width:100%}
+.toolbar input{flex:1;min-width:200px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}.chips button{border-radius:999px;padding:5px 11px;font-size:13px}
+.tw{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:65vh}
+table{border-collapse:collapse;width:100%;min-width:900px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:#eef3f8;font-size:13px;color:var(--mut);z-index:1}
+tbody tr{cursor:pointer}tbody tr:hover{background:#f6fafd}td.num{text-align:right}
+.qty{display:inline-flex;align-items:center;gap:6px}.qty button{padding:1px 8px}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid}
+.s-InStock{background:#e7f6ec;color:#17663a;border-color:#b5e0c4}.s-BelowPar{background:#fff4e0;color:#8a5300;border-color:#f4d49c}
+.s-QuoteNeeded{background:#fdeceb;color:#a02a1f;border-color:#f3c0bb}.s-QuoteRequested{background:#eaf2fd;color:#1b5ea6;border-color:#bcd5f3}
+.s-QuoteReceived{background:#e6f6f8;color:#0f6470;border-color:#b2dfe5}.s-AwaitingApproval{background:#f3edfb;color:#5d3a99;border-color:#d6c6ef}
+.s-Ordered{background:#e9ecfb;color:#33429c;border-color:#c3caf1}.s-PartiallyReceived{background:#fdf6d8;color:#7a6200;border-color:#ecdc94}
+.s-Received{background:#e3f4ef;color:#145c47;border-color:#a9dbcb}
+.empty{background:#fff;border:1px dashed var(--line);border-radius:12px;padding:40px;text-align:center;color:var(--mut)}
+.empty h2{color:var(--ink);font-size:18px}
+.ov{position:fixed;inset:0;background:rgba(20,30,45,.45);display:flex;align-items:flex-start;justify-content:center;padding:4vh 10px;overflow:auto;z-index:10}
+.modal{background:#fff;border-radius:12px;width:100%;max-width:820px;padding:18px 20px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.modal h2{margin:0 0 10px;font-size:18px}.modal h3{font-size:14px;color:var(--mut);margin:16px 0 6px;text-transform:uppercase;letter-spacing:.04em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 14px}
+.grid label{font-size:12px;color:var(--mut);display:block}.kv div{padding:4px 0;border-bottom:1px solid #eef2f6}.kv b{display:block;font-size:12px;color:var(--mut);font-weight:500}
+.actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:16px}
+.hide{display:none!important}.mut{color:var(--mut)}
+@media(max-width:640px){header h1{font-size:16px}main{padding:12px}.card .n{font-size:21px}}
+</style>
+</head>
+<body>
+<header><h1 id="title"></h1><nav><button id="navInv" class="active">Inventory</button><button id="navReps">Reps</button></nav></header>
+<main>
+<section id="viewInv">
+ <div class="cards" id="cards"></div>
+ <div class="toolbar">
+  <input id="search" type="search" placeholder="Search name, type, manufacturer, catalog #, distributor">
+  <button class="pri" id="btnAdd">Add instrument</button>
+  <button id="btnExport">Export JSON</button>
+  <button id="btnImport">Import JSON</button><input type="file" id="fileImport" accept="application/json,.json" class="hide">
+  <button id="btnSample">Load sample data</button>
+  <button class="dan" id="btnClear">Clear All</button>
+ </div>
+ <div class="chips" id="chips"></div>
+ <div id="tableArea"></div>
+</section>
+<section id="viewReps" class="hide">
+ <div class="toolbar"><h2 style="margin:0;flex:1;font-size:18px">Rep Address Book</h2><button class="pri" id="btnAddRep">Add company</button></div>
+ <div id="repsArea"></div>
+</section>
+</main>
+<div id="ov" class="ov hide"><div class="modal" id="modal"></div></div>
+<script>
+"use strict";
+const FACILITY_NAME = "Enrique";
+const KEY_INST = "surgicalInventory.v1", KEY_REPS = "surgicalInventory.reps.v1";
+const STATUSES = ["In Stock","Below Par","Quote Needed","Quote Requested","Quote Received","Awaiting Approval","Ordered","Partially Received","Received"];
+const QUOTE_STATUSES = ["Not Requested","Requested","Received"];
+const NUM_FIELDS = ["currentQuantity","desiredQuantity","quantityRequestedForQuote","quantityOrdered","quantityReceived"];
+
+function n(v){ const x = Number(v); return Number.isFinite(x) ? x : 0; }
+function quantityNeeded(i){ return Math.max(0, n(i.desiredQuantity) - n(i.currentQuantity)); }
+function outstandingOrder(i){ return Math.max(0, n(i.quantityOrdered) - n(i.quantityReceived)); }
+function autoStatus(i){
+  const rec = n(i.quantityReceived), ord = n(i.quantityOrdered), need = quantityNeeded(i), qq = n(i.quantityRequestedForQuote);
+  if (rec > 0 && ord > 0 && rec >= ord) return "Received";
+  if (rec > 0 && ord > 0) return "Partially Received";
+  if (ord > 0) return "Ordered";
+  if (i.quoteStatus === "Received") return "Quote Received";
+  if (i.quoteStatus === "Requested") return "Quote Requested";
+  if (i.awaitingApproval) return "Awaiting Approval";
+  if (need > 0 && qq === 0) return "Quote Needed";
+  if (need > 0) return "Below Par";
+  return "In Stock";
+}
+function status(i){ return STATUSES.includes(i.statusOverride) ? i.statusOverride : autoStatus(i); }
+
+let instruments = [], reps = [];
+const state = { view:"inv", filter:"All", search:"" };
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function load(){
+  try { instruments = JSON.parse(localStorage.getItem(KEY_INST)) || []; } catch(e){ instruments = []; }
+  let r = null; try { r = JSON.parse(localStorage.getItem(KEY_REPS)); } catch(e){}
+  if (!Array.isArray(r)) {
+    r = [["DePuy Synthes","Trauma / CMF"],["Stryker","Instruments"],["Medtronic","Surgical technologies"]]
+      .map(([company,notes]) => ({ id:uid(), company, repName:"", repPhone:"", repEmail:"", notes }));
+    localStorage.setItem(KEY_REPS, JSON.stringify(r));
+  }
+  reps = r;
+}
+function save(){ localStorage.setItem(KEY_INST, JSON.stringify(instruments)); localStorage.setItem(KEY_REPS, JSON.stringify(reps)); }
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function badge(s){ return '<span class="badge s-' + s.replace(/\s/g,"") + '">' + esc(s) + "</span>"; }
+const $ = id => document.getElementById(id);
+
+function blankInstrument(){
+  return { id:uid(), instrumentType:"", instrumentName:"", manufacturer:"", description:"", catalogNumber:"", distributor:"",
+    representativeName:"", representativePhone:"", representativeEmail:"", currentQuantity:0, desiredQuantity:0,
+    quantityRequestedForQuote:0, quoteRequestDate:"", quoteStatus:"Not Requested", quoteNumber:"", quotedPrice:"",
+    quantityOrdered:0, orderDate:"", purchaseOrderNumber:"", quantityReceived:0, receivedDate:"", awaitingApproval:false, statusOverride:"" };
+}
+function normalize(o){ const b = Object.assign(blankInstrument(), o || {}); NUM_FIELDS.forEach(f => b[f] = Math.max(0, n(b[f]))); b.awaitingApproval = !!b.awaitingApproval; if(!b.id) b.id = uid(); return b; }
+
+/* Dashboard card filters */
+const CARDS = [
+  { key:"All", label:"Instrument types", val:() => instruments.length },
+  { key:"All", label:"Total instruments in inventory", val:() => instruments.reduce((a,i)=>a+n(i.currentQuantity),0), id:"total" },
+  { key:"Below Par", label:"Below Par", val:() => count("Below Par") },
+  { key:"Quote Needed", label:"Quote Needed", val:() => count("Quote Needed") },
+  { key:"Quote Requested", label:"Quotes Requested", val:() => count("Quote Requested") },
+  { key:"Ordered", label:"On Order", val:() => count("Ordered") },
+  { key:"Partially Received", label:"Partially Received", val:() => count("Partially Received") }
+];
+function count(s){ return instruments.filter(i => status(i) === s).length; }
+
+function render(){
+  $("title").textContent = FACILITY_NAME + " — Surgical Instrument Inventory Tracker";
+  $("viewInv").classList.toggle("hide", state.view !== "inv"); $("viewReps").classList.toggle("hide", state.view !== "reps");
+  $("navInv").classList.toggle("active", state.view === "inv"); $("navReps").classList.toggle("active", state.view === "reps");
+  if (state.view === "reps") return renderReps();
+  $("cards").innerHTML = CARDS.map((c,ix) => '<button class="card' + (state.filter === c.key && c.key !== "All" ? " sel" : "") + '" data-card="' + ix + '"><div class="n">' + c.val() + '</div><div class="l">' + esc(c.label) + "</div></button>").join("");
+  $("chips").innerHTML = ["All"].concat(STATUSES).map(s => '<button data-chip="' + esc(s) + '" class="' + (state.filter === s ? "active" : "") + '">' + esc(s) + (s === "All" ? "" : " (" + count(s) + ")") + "</button>").join("");
+  if (!instruments.length) {
+    $("tableArea").innerHTML = '<div class="empty"><h2>No instruments yet — add your first instrument</h2><p>Track loose instruments, par levels, quotes and orders. Data stays in this browser.</p><button class="pri" data-act="add">Add instrument</button> <button data-act="sample">Load sample data</button></div>';
+    return;
+  }
+  const q = state.search.trim().toLowerCase();
+  const rows = instruments.filter(i => (state.filter === "All" || status(i) === state.filter) &&
+    (!q || ["instrumentName","instrumentType","manufacturer","catalogNumber","distributor"].some(f => String(i[f]||"").toLowerCase().includes(q))));
+  $("tableArea").innerHTML = '<div class="tw"><table><thead><tr><th>Instrument</th><th>Type</th><th>Manufacturer</th><th>Catalog #</th><th>Current</th><th>Par</th><th>Needed</th><th>Quote Req.</th><th>Ordered</th><th>Received</th><th>Status</th></tr></thead><tbody>' +
+    (rows.length ? rows.map(i => '<tr data-id="' + i.id + '"><td><b>' + esc(i.instrumentName) + '</b></td><td>' + esc(i.instrumentType) + '</td><td>' + esc(i.manufacturer) + '</td><td>' + esc(i.catalogNumber) +
+      '</td><td><span class="qty"><button data-dec="' + i.id + '" aria-label="Decrease">-</button><b>' + n(i.currentQuantity) + '</b><button data-inc="' + i.id + '" aria-label="Increase">+</button></span></td><td class="num">' + n(i.desiredQuantity) +
+      '</td><td class="num">' + quantityNeeded(i) + '</td><td class="num">' + n(i.quantityRequestedForQuote) + '</td><td class="num">' + n(i.quantityOrdered) + '</td><td class="num">' + n(i.quantityReceived) + '</td><td>' + badge(status(i)) + (i.statusOverride ? ' <span class="mut" title="Manual override">*</span>' : "") + "</td></tr>").join("")
+     : '<tr><td colspan="11" class="mut" style="text-align:center;padding:24px">No instruments match the current search or filter.</td></tr>') + "</tbody></table></div>";
+}
+
+function linkedCount(company){ return instruments.filter(i => (i.distributor||"").toLowerCase() === company.toLowerCase()).length; }
+function renderReps(){
+  $("repsArea").innerHTML = reps.length ? '<div class="tw"><table><thead><tr><th>Company</th><th>Rep name</th><th>Phone</th><th>Email</th><th>Notes</th><th>Linked instruments</th><th></th></tr></thead><tbody>' +
+    reps.map(r => '<tr><td><b>' + esc(r.company) + '</b></td><td>' + (r.repName ? esc(r.repName) : '<span class="mut">Add rep name</span>') + '</td><td>' + (r.repPhone ? esc(r.repPhone) : '<span class="mut">Add phone</span>') +
+      '</td><td>' + (r.repEmail ? '<a href="mailto:' + esc(r.repEmail) + '">' + esc(r.repEmail) + '</a>' : '<span class="mut">Add email</span>') + '</td><td>' + esc(r.notes) + '</td><td class="num">' + linkedCount(r.company) +
+      '</td><td><button data-editrep="' + r.id + '">Edit</button> <button class="dan" data-delrep="' + r.id + '">Delete</button></td></tr>').join("") + "</tbody></table></div>"
+    : '<div class="empty"><h2>No companies in the address book</h2><button class="pri" data-act="addrep">Add company</button></div>';
+}
+
+/* Modal helpers */
+function openModal(html){ $("modal").innerHTML = html; $("ov").classList.remove("hide"); }
+function closeModal(){ $("ov").classList.add("hide"); $("modal").innerHTML = ""; }
+$("ov").addEventListener("click", e => { if (e.target === $("ov")) closeModal(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+function kv(label, val){ return "<div><b>" + esc(label) + "</b>" + (val === "" || val == null ? '<span class="mut">-</span>' : esc(val)) + "</div>"; }
+function showDetail(id){
+  const i = instruments.find(x => x.id === id); if (!i) return;
+  openModal("<h2>" + esc(i.instrumentName || "(unnamed)") + " " + badge(status(i)) + "</h2>" +
+    '<h3>Identity</h3><div class="grid kv">' + kv("Instrument type", i.instrumentType) + kv("Instrument name", i.instrumentName) + kv("Manufacturer", i.manufacturer) + kv("Catalog #", i.catalogNumber) +
+    kv("Description", i.description) + kv("Distributor", i.distributor) + kv("Representative", i.representativeName) + kv("Rep phone", i.representativePhone) + kv("Rep email", i.representativeEmail) + "</div>" +
+    '<h3>Inventory</h3><div class="grid kv">' + kv("Current quantity", n(i.currentQuantity)) + kv("Par (desired)", n(i.desiredQuantity)) + kv("Quantity needed (auto)", quantityNeeded(i)) + "</div>" +
+    '<h3>Purchasing</h3><div class="grid kv">' + kv("Qty requested for quote", n(i.quantityRequestedForQuote)) + kv("Quote request date", i.quoteRequestDate) + kv("Quote status", i.quoteStatus) + kv("Quote #", i.quoteNumber) +
+    kv("Quoted price", i.quotedPrice) + kv("Qty ordered", n(i.quantityOrdered)) + kv("Order date", i.orderDate) + kv("PO #", i.purchaseOrderNumber) + kv("Qty received", n(i.quantityReceived)) + kv("Received date", i.receivedDate) +
+    kv("Awaiting approval", i.awaitingApproval ? "Yes" : "No") + "</div>" +
+    '<h3>Derived</h3><div class="grid kv">' + kv("Outstanding order (auto)", outstandingOrder(i)) + kv("Auto status", autoStatus(i)) + kv("Status override", i.statusOverride || "Auto") + kv("Effective status", status(i)) + "</div>" +
+    '<div class="actions"><button class="dan" data-delinst="' + i.id + '">Delete</button><button data-pull="' + i.id + '">Pull from address book</button><button data-editinst="' + i.id + '">Edit</button><button class="pri" data-act="close">Close</button></div>');
+}
+function pullFromBook(id){
+  const i = instruments.find(x => x.id === id); if (!i) return;
+  const r = reps.find(x => x.company.toLowerCase() === (i.distributor||"").toLowerCase());
+  if (!r) { alert("No address book entry matches distributor \"" + (i.distributor || "(none)") + "\". Edit the instrument to choose a company."); return; }
+  i.representativeName = r.repName; i.representativePhone = r.repPhone; i.representativeEmail = r.repEmail;
+  save(); render(); showDetail(id);
+}
+
+function field(name, label, val, type, extra){ return '<div><label for="f_' + name + '">' + esc(label) + '</label><input id="f_' + name + '" name="' + name + '" type="' + (type||"text") + '" value="' + esc(val) + '"' + (extra||"") + "></div>"; }
+function showForm(id){
+  const i = id ? normalize(instruments.find(x => x.id === id)) : blankInstrument();
+  const known = reps.some(r => r.company === i.distributor);
+  const distOpts = '<option value="">(none)</option>' + reps.map(r => '<option' + (r.company === i.distributor ? " selected" : "") + ">" + esc(r.company) + "</option>").join("") +
+    '<option value="__other"' + (i.distributor && !known ? " selected" : "") + ">Custom/Other</option>";
+  openModal("<h2>" + (id ? "Edit instrument" : "Add instrument") + '</h2><form id="instForm">' +
+    '<h3>Identity</h3><div class="grid">' + field("instrumentName","Instrument name *",i.instrumentName,"text"," required") + field("instrumentType","Instrument type",i.instrumentType) + field("manufacturer","Manufacturer",i.manufacturer) + field("catalogNumber","Catalog #",i.catalogNumber) +
+    '<div><label for="f_dist">Distributor</label><select id="f_dist">' + distOpts + '</select></div><div id="otherWrap" class="' + (i.distributor && !known ? "" : "hide") + '">' + field("distOther","Custom distributor",known ? "" : i.distributor) + "</div>" +
+    field("representativeName","Rep name",i.representativeName,"text",' placeholder="Add rep name"') + field("representativePhone","Rep phone",i.representativePhone,"tel",' placeholder="Add phone"') + field("representativeEmail","Rep email",i.representativeEmail,"email",' placeholder="Add email"') +
+    '</div><div style="margin-top:8px"><label class="mut" for="f_description" style="font-size:12px">Description</label><textarea id="f_description" name="description" rows="2">' + esc(i.description) + "</textarea></div>" +
+    '<h3>Inventory</h3><div class="grid">' + field("currentQuantity","Current quantity",i.currentQuantity,"number",' min="0" step="1"') + field("desiredQuantity","Par (desired quantity)",i.desiredQuantity,"number",' min="0" step="1"') + '<div><label>Quantity needed (auto)</label><input id="f_needed" disabled></div></div>' +
+    '<h3>Purchasing</h3><div class="grid">' + field("quantityRequestedForQuote","Qty requested for quote",i.quantityRequestedForQuote,"number",' min="0" step="1"') + field("quoteRequestDate","Quote request date",i.quoteRequestDate,"date") +
+    '<div><label for="f_quoteStatus">Quote status</label><select id="f_quoteStatus" name="quoteStatus">' + QUOTE_STATUSES.map(s => "<option" + (s === i.quoteStatus ? " selected" : "") + ">" + s + "</option>").join("") + "</select></div>" +
+    field("quoteNumber","Quote #",i.quoteNumber) + field("quotedPrice","Quoted price",i.quotedPrice,"number",' min="0" step="0.01"') + field("quantityOrdered","Qty ordered",i.quantityOrdered,"number",' min="0" step="1"') + field("orderDate","Order date",i.orderDate,"date") +
+    field("purchaseOrderNumber","PO #",i.purchaseOrderNumber) + field("quantityReceived","Qty received",i.quantityReceived,"number",' min="0" step="1"') + field("receivedDate","Received date",i.receivedDate,"date") +
+    '<div><label for="f_awaitingApproval">Awaiting approval</label><label style="font-size:14px;color:var(--ink);padding-top:6px"><input type="checkbox" id="f_awaitingApproval" name="awaitingApproval" style="width:auto"' + (i.awaitingApproval ? " checked" : "") + "> Awaiting approval</label></div>" +
+    '<div><label>Outstanding order (auto)</label><input id="f_outstanding" disabled></div></div>' +
+    '<h3>Status</h3><div class="grid"><div><label for="f_statusOverride">Status override</label><select id="f_statusOverride" name="statusOverride"><option value="">Auto</option>' + STATUSES.map(s => "<option" + (s === i.statusOverride ? " selected" : "") + ">" + s + "</option>").join("") +
+    '</select></div><div><label>Auto status preview</label><div id="f_autoStatus" style="padding-top:6px"></div></div></div>' +
+    '<div class="actions"><button type="button" data-act="close">Cancel</button><button class="pri" type="submit">Save</button></div></form>');
+  const form = $("instForm");
+  const read = () => { const o = { id:i.id }; form.querySelectorAll("[name]").forEach(el => { o[el.name] = el.type === "checkbox" ? el.checked : el.value; });
+    const d = $("f_dist").value; o.distributor = d === "__other" ? $("f_distOther").value.trim() : d; delete o.distOther; return normalize(o); };
+  const upd = () => { const o = read(); $("f_needed").value = quantityNeeded(o); $("f_outstanding").value = outstandingOrder(o); $("f_autoStatus").innerHTML = badge(autoStatus(o)); };
+  form.addEventListener("input", upd); upd();
+  $("f_dist").addEventListener("change", e => {
+    $("otherWrap").classList.toggle("hide", e.target.value !== "__other");
+    const r = reps.find(x => x.company === e.target.value);
+    if (r) { $("f_representativeName").value = r.repName; $("f_representativePhone").value = r.repPhone; $("f_representativeEmail").value = r.repEmail; }
+  });
+  form.addEventListener("submit", e => { e.preventDefault(); const o = read(); if (!o.instrumentName.trim()) return;
+    const ix = instruments.findIndex(x => x.id === o.id); if (ix >= 0) instruments[ix] = o; else instruments.push(o);
+    save(); render(); showDetail(o.id); });
+}
+
+function showRepForm(id){
+  const r = reps.find(x => x.id === id) || { id:uid(), company:"", repName:"", repPhone:"", repEmail:"", notes:"" };
+  openModal("<h2>" + (id ? "Edit company" : "Add company") + '</h2><form id="repForm"><div class="grid">' + field("company","Company *",r.company,"text"," required") + field("repName","Rep name",r.repName,"text",' placeholder="Add rep name"') +
+    field("repPhone","Rep phone",r.repPhone,"tel",' placeholder="Add phone"') + field("repEmail","Rep email",r.repEmail,"email",' placeholder="Add email"') + field("notes","Notes",r.notes,"text",' placeholder="Add notes"') +
+    '</div><div class="actions"><button type="button" data-act="close">Cancel</button><button class="pri" type="submit">Save</button></div></form>');
+  $("repForm").addEventListener("submit", e => { e.preventDefault(); const f = e.target; const o = { id:r.id };
+    ["company","repName","repPhone","repEmail","notes"].forEach(k => o[k] = f.elements[k].value.trim()); if (!o.company) return;
+    if (reps.some(x => x.id !== o.id && x.company.toLowerCase() === o.company.toLowerCase())) { alert("A company with that name already exists."); return; }
+    const ix = reps.findIndex(x => x.id === o.id);
+    if (ix >= 0) { const old = reps[ix].company; if (old !== o.company) instruments.forEach(i => { if (i.distributor === old) i.distributor = o.company; }); reps[ix] = o; } else reps.push(o);
+    save(); closeModal(); render(); });
+}
+function deleteRep(id){
+  const r = reps.find(x => x.id === id); if (!r) return; const c = linkedCount(r.company);
+  const msg = c ? "Warning: " + c + " instrument(s) use \"" + r.company + "\" as distributor. They will keep the name as a custom distributor. Delete anyway?" : "Delete \"" + r.company + "\" from the address book?";
+  if (confirm(msg)) { reps = reps.filter(x => x.id !== id); save(); render(); }
+}
+
+function sampleData(){
+  const s = (o) => normalize(Object.assign({ id:uid() }, o));
+  return [
+    s({ instrumentName:"Knife Handle #3", instrumentType:"Knife Handle", manufacturer:"Example Surgical", catalogNumber:"KH-003", description:"Standard #3 scalpel handle", distributor:"Stryker", currentQuantity:25, desiredQuantity:40, quantityRequestedForQuote:15, quoteStatus:"Received", quoteNumber:"Q-1001", quantityOrdered:10, purchaseOrderNumber:"PO-5001", quantityReceived:5 }),
+    s({ instrumentName:"Adson Forceps", instrumentType:"Forceps", manufacturer:"Example Surgical", catalogNumber:"AF-120", description:"Adson tissue forceps, 12 cm", currentQuantity:30, desiredQuantity:30 }),
+    s({ instrumentName:"Metzenbaum Scissors", instrumentType:"Scissors", manufacturer:"Example Surgical", catalogNumber:"MS-180", description:"Curved, 18 cm", currentQuantity:4, desiredQuantity:10 }),
+    s({ instrumentName:"Needle Holder", instrumentType:"Needle Holder", manufacturer:"Example Surgical", catalogNumber:"NH-160", description:"Mayo-Hegar, 16 cm", distributor:"DePuy Synthes", currentQuantity:6, desiredQuantity:12, quantityRequestedForQuote:6, quoteStatus:"Requested" }),
+    s({ instrumentName:"Richardson Retractor", instrumentType:"Retractor", manufacturer:"Example Surgical", catalogNumber:"RR-240", description:"Medium blade", distributor:"Medtronic", currentQuantity:2, desiredQuantity:6, quantityRequestedForQuote:4, quoteStatus:"Received", quoteNumber:"Q-1002", quantityOrdered:4, purchaseOrderNumber:"PO-5002" }),
+    s({ instrumentName:"Yankauer Suction Tip", instrumentType:"Suction", manufacturer:"Example Surgical", catalogNumber:"YS-010", description:"Reusable stainless, bulb tip", currentQuantity:10, desiredQuantity:20, quantityRequestedForQuote:10, awaitingApproval:true })
+  ];
+}
+
+function exportJSON(){
+  const blob = new Blob([JSON.stringify({ app:"surgicalInventory", version:1, facility:FACILITY_NAME, exportedAt:new Date().toISOString(), instruments, reps }, null, 2)], { type:"application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "surgical-inventory-" + new Date().toISOString().slice(0,10) + ".json";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function importJSON(file){
+  const fr = new FileReader();
+  fr.onload = () => { try {
+      const d = JSON.parse(fr.result); const inst = Array.isArray(d) ? d : d.instruments;
+      if (!Array.isArray(inst)) throw new Error("No instruments array found.");
+      if (!confirm("Replace current data with " + inst.length + " instrument(s)" + (Array.isArray(d.reps) ? " and " + d.reps.length + " rep(s)" : "") + " from file?")) return;
+      instruments = inst.map(normalize);
+      if (Array.isArray(d.reps)) reps = d.reps.map(r => ({ id:r.id || uid(), company:String(r.company||""), repName:String(r.repName||""), repPhone:String(r.repPhone||""), repEmail:String(r.repEmail||""), notes:String(r.notes||"") })).filter(r => r.company);
+      save(); render();
+    } catch(err){ alert("Import failed: " + err.message); } };
+  fr.readAsText(file);
+}
+
+/* Events */
+document.addEventListener("click", e => {
+  const t = e.target.closest("button,tr[data-id]"); if (!t) return;
+  const d = t.dataset;
+  if (d.inc || d.dec) { e.stopPropagation(); const i = instruments.find(x => x.id === (d.inc || d.dec)); i.currentQuantity = Math.max(0, n(i.currentQuantity) + (d.inc ? 1 : -1)); save(); render(); return; }
+  if (d.card) { const c = CARDS[+d.card]; state.filter = c.key; render(); return; }
+  if (d.chip) { state.filter = d.chip; render(); return; }
+  if (d.id && t.tagName === "TR") return showDetail(d.id);
+  if (d.editinst) return showForm(d.editinst);
+  if (d.pull) return pullFromBook(d.pull);
+  if (d.delinst) { const i = instruments.find(x => x.id === d.delinst); if (confirm("Delete \"" + i.instrumentName + "\"? This cannot be undone.")) { instruments = instruments.filter(x => x.id !== d.delinst); save(); closeModal(); render(); } return; }
+  if (d.editrep) return showRepForm(d.editrep);
+  if (d.delrep) return deleteRep(d.delrep);
+  if (d.act === "close") return closeModal();
+  if (d.act === "add") return showForm();
+  if (d.act === "sample") return loadSample();
+  if (d.act === "addrep") return showRepForm();
+});
+function loadSample(){ if (instruments.length && !confirm("Add 6 sample instruments to your existing inventory?")) return; instruments = instruments.concat(sampleData()); save(); render(); }
+$("btnAdd").onclick = () => showForm();
+$("btnAddRep").onclick = () => showRepForm();
+$("btnSample").onclick = loadSample;
+$("btnExport").onclick = exportJSON;
+$("btnImport").onclick = () => $("fileImport").click();
+$("fileImport").onchange = e => { if (e.target.files[0]) importJSON(e.target.files[0]); e.target.value = ""; };
+$("btnClear").onclick = () => { if (confirm("Clear ALL instruments and reset the rep address book? Export first if you need a backup.") && confirm("This cannot be undone. Continue?")) { localStorage.removeItem(KEY_INST); localStorage.removeItem(KEY_REPS); load(); state.filter = "All"; render(); } };
+$("search").addEventListener("input", e => { state.search = e.target.value; render(); });
+$("navInv").onclick = () => { state.view = "inv"; render(); };
+$("navReps").onclick = () => { state.view = "reps"; render(); };
+window.addEventListener("storage", () => { load(); render(); });
+
+load(); render();
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) { navigator.serviceWorker.register("sw.js").catch(() => {}); }
+</script>
+</body>
+</html>
