@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1767a8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SPD Copilot">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<title>SPD Copilot</title>
+<style>
+:root{--bg:#f4f7fa;--card:#fff;--ink:#1c2a39;--mut:#5d6b7a;--line:#dbe3eb;--pri:#1767a8;--pri2:#0f4f84;--dan:#b42318}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.45 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:env(safe-area-inset-bottom)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:14px max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left))}
+header h1{font-size:20px;margin:0;font-weight:650}
+header p{margin:4px 0 0;color:var(--mut);font-size:14px}
+main{max-width:720px;margin:0 auto;padding:16px 20px}
+.cards{display:grid;gap:10px;margin-bottom:16px}
+.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;text-decoration:none;color:inherit;min-height:44px}
+.card:hover{border-color:var(--pri)}
+.card b{display:block;font-size:17px;margin-bottom:4px}
+.card span{color:var(--mut);font-size:14px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.panel h2{margin:0 0 8px;font-size:18px}
+.mut{color:var(--mut);font-size:14px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);padding:10px 14px;border-radius:6px;cursor:pointer;min-height:44px}
+button:hover{border-color:var(--pri)}
+button.pri{background:var(--pri);color:#fff;border-color:var(--pri)}
+button.pri:hover{background:var(--pri2)}
+.msg{margin-top:10px;padding:9px 10px;border-radius:8px;background:#eaf2fd;color:#1b4f86}
+.msg.bad{background:#fdeceb;color:#8d241c}
+.filepick{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+ <h1>SPD Copilot</h1>
+ <p>Inventory, identification, and supplier contacts. Data stays in this browser.</p>
+</header>
+<main>
+ <nav class="cards" aria-label="Apps">
+  <a class="card" href="index.html"><b>Inventory Tracker</b><span>Quantities, par levels, quotes, orders, and the rep address book.</span></a>
+  <a class="card" href="identify.html"><b>Identify</b><span>Photograph one instrument and compare it with inventory. Training reference only.</span></a>
+  <a class="card" href="public/Rep_Database.html"><b>Rep Database</b><span>Supplier representatives and support contacts, including business-card entry.</span></a>
+ </nav>
+ <section class="panel">
+  <h2>Backup</h2>
+  <p class="mut">Export all data downloads inventory, the address book, the rep database, and the identification log. The API key and model settings are not included. Import backup replaces those lists on this device after you confirm.</p>
+  <p id="lastBackup" class="mut">No backup exported from this device yet.</p>
+  <div class="actions">
+   <button type="button" class="pri" id="btnExport">Export all data</button>
+   <button type="button" id="btnImport">Import backup</button>
+   <button type="button" id="btnRecovery" class="hide">Export recovery copy</button>
+  </div>
+  <p id="backupMsg" class="msg hide" role="status"></p>
+  <input id="backupFile" class="filepick" type="file" accept="application/json,.json" aria-label="Choose a backup file">
+ </section>
+ <p class="mut" style="margin-top:14px">On iPhone, open this page in Safari, tap Share, then Add to Home Screen. The icon opens this hub. This install does not use a separate icon image.</p>
+</main>
+<script src="spd-data.js"></script>
+<script>
+"use strict";
+var LAST_BACKUP_KEY = "surgicalCopilot.lastBackupAt";
+var $ = function (id) { return document.getElementById(id); };
+
+function setMsg(text, isError) {
+  var el = $("backupMsg");
+  if (!text) { el.textContent = ""; el.classList.add("hide"); return; }
+  el.textContent = text;
+  el.classList.remove("hide");
+  el.classList.toggle("bad", !!isError);
+}
+
+function showLastBackup() {
+  var raw = localStorage.getItem(LAST_BACKUP_KEY);
+  if (!raw) { $("lastBackup").textContent = "No backup exported from this device yet."; return; }
+  var when = new Date(raw);
+  $("lastBackup").textContent = "Last backup: " + (isNaN(when.getTime()) ? raw : when.toLocaleString()) + ".";
+}
+
+function readStores() {
+  var stores = {};
+  var keys = SPDData.BACKUP_KEYS;
+  for (var i = 0; i < keys.length; i++) {
+    var raw = localStorage.getItem(keys[i]);
+    if (raw == null) { stores[keys[i]] = null; continue; }
+    try { stores[keys[i]] = JSON.parse(raw); }
+    catch (e) { throw new Error(keys[i] + " could not be read, so nothing was exported."); }
+  }
+  return stores;
+}
+
+function download(filename, text) {
+  var blob = new Blob([text], { type: "application/json" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+}
+
+function exportAll() {
+  try {
+    var exportedAt = new Date().toISOString();
+    var backup = SPDData.buildBackup(readStores(), exportedAt);
+    download("spd-copilot-backup-" + exportedAt.slice(0, 10) + ".json", JSON.stringify(backup, null, 2));
+    localStorage.setItem(LAST_BACKUP_KEY, exportedAt);
+    showLastBackup();
+    setMsg("Backup downloaded. The API key was not included.");
+  } catch (e) {
+    setMsg(e.message || "Export failed.", true);
+  }
+}
+
+var LABELS = {
+  "surgicalInventory.v1": "instruments",
+  "surgicalInventory.reps.v1": "address-book companies",
+  "supplyRepDatabase_v1": "rep database contacts",
+  "surgicalCopilot.idLog.v1": "identification log entries"
+};
+
+function showRecovery() {
+  var raw = localStorage.getItem("surgicalCopilot.restoreRecovery.v1");
+  $("btnRecovery").classList.toggle("hide", !raw);
+}
+$("btnRecovery").onclick = function () {
+  var raw = localStorage.getItem("surgicalCopilot.restoreRecovery.v1");
+  if (raw) download("spd-restore-recovery.json", raw);
+};
+showRecovery();
+function importAll(file) {
+  if (localStorage.getItem("surgicalCopilot.restoreRecovery.v1")) {
+    setMsg("A previous restore needs recovery. Export its recovery copy before making further changes.", true); return;
+  }
+  var reader = new FileReader();
+  reader.onload = function () {
+    var parsed;
+    try { parsed = SPDData.parseBackup(String(reader.result || "")); }
+    catch (e) { setMsg(e.message || "That file could not be imported.", true); return; }
+    var lines = [];
+    var keys = SPDData.BACKUP_KEYS;
+    for (var i = 0; i < keys.length; i++) {
+      var value = parsed.data[keys[i]];
+      if (Array.isArray(value)) lines.push(value.length + " " + LABELS[keys[i]]);
+    }
+    if (!lines.length) { setMsg("This backup has no lists to restore.", true); return; }
+    var when = parsed.exportedAt ? " from " + parsed.exportedAt : "";
+    var question = "Replace data on this device with this backup" + when + "?\n\n" + lines.join("\n") + "\n\nThe API key is not changed.";
+    if (!confirm(question)) { setMsg("Import cancelled."); return; }
+    try { SPDData.restoreBackup(localStorage, parsed); }
+    catch (e) { setMsg(e.message || "Restore failed.", true); showRecovery(); return; }
+    setMsg("Backup restored.");
+  };
+  reader.onerror = function () { setMsg("The file could not be read.", true); };
+  reader.readAsText(file);
+}
+
+$("btnExport").onclick = exportAll;
+$("btnImport").onclick = function () { $("backupFile").click(); };
+$("backupFile").onchange = function (e) {
+  var file = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (file) importAll(file);
+};
+showLastBackup();
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) { navigator.serviceWorker.register("sw.js").catch(function () {}); }
+</script>
+</body>
+</html>

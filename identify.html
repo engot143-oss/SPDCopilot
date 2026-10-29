@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1767a8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SPD Copilot">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Identify instrument — SPD Copilot</title>
+<style>
+:root{--bg:#f4f7fa;--card:#fff;--ink:#1c2a39;--mut:#5d6b7a;--line:#dbe3eb;--pri:#1767a8;--pri2:#0f4f84;--dan:#b42318}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.45 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:env(safe-area-inset-bottom)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:14px max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left));display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+header h1{font-size:19px;margin:0;font-weight:650}
+nav{display:flex;flex-wrap:wrap;gap:8px}
+a.nav,button{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);padding:7px 12px;border-radius:6px;cursor:pointer;text-decoration:none;min-height:44px}
+a.nav{display:inline-flex;align-items:center}
+button:hover,a.nav:hover{border-color:var(--pri)}
+button.pri,a.btn.pri{background:var(--pri);color:#fff;border-color:var(--pri)}
+button.pri:hover,a.btn.pri:hover{background:var(--pri2)}
+button.dan{color:var(--dan);border-color:#f0c4c0}
+button:disabled{opacity:.55;cursor:default}
+.banner{background:#fff4e0;color:#6b4a00;border-bottom:1px solid #f4d49c;padding:10px 20px;font-size:14px}
+main{max-width:720px;margin:0 auto;padding:16px 20px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.panel h2{margin:0 0 6px;font-size:22px}
+.panel h3{margin:0 0 8px;font-size:16px}
+.kicker{margin:0;color:var(--mut);font-size:12px;font-weight:650;letter-spacing:.04em;text-transform:uppercase}
+.mut{color:var(--mut)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.actions button,.actions a.btn{flex:1 1 140px}
+a.btn{display:inline-flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);padding:7px 12px;border-radius:6px;min-height:44px}
+.stage{position:relative;background:#0e1720;border-radius:12px;overflow:hidden;min-height:240px;margin-bottom:12px}
+.stage video,.stage img{display:block;width:100%;max-height:62vh;object-fit:contain;background:#0e1720}
+.overlay{position:absolute;left:0;right:0;bottom:0;padding:10px 12px;background:rgba(14,23,32,.78);color:#fff;font-size:14px;text-align:center}
+.shot{display:block;width:100%;max-height:280px;object-fit:contain;background:#0e1720;border-radius:10px;margin-bottom:12px}
+.meter{height:8px;background:#e6eef5;border-radius:99px;overflow:hidden;margin:8px 0 12px}
+.meter span{display:block;height:100%;background:var(--pri)}
+label{display:block;font-size:12px;color:var(--mut);margin-top:10px}
+input,select,textarea{font:inherit;font-size:16px;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);width:100%}
+.msg{padding:9px 10px;border-radius:8px;background:#eaf2fd;color:#1b4f86;margin-top:10px}
+.msg.bad{background:#fdeceb;color:#8d241c}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:650;border:1px solid}
+.ok{background:#e7f6ec;color:#17663a;border-color:#b5e0c4}
+.badb{background:#fdeceb;color:#a02a1f;border-color:#f3c0bb}
+ul{margin:6px 0 0;padding-left:18px}
+.loglist{list-style:none;margin:0;padding:0}
+.loglist li{padding:10px 0;border-bottom:1px solid var(--line);display:flex;gap:10px}
+.loglist img{width:72px;height:72px;object-fit:cover;border-radius:8px;background:#0e1720;flex:none}
+.ov{position:fixed;inset:0;background:rgba(20,30,45,.45);display:flex;align-items:flex-start;justify-content:center;padding:4vh 10px;overflow:auto;z-index:10}
+.modal{background:#fff;border-radius:12px;width:100%;max-width:560px;padding:18px 20px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.modal h2{margin:0 0 8px;font-size:18px}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.filepick{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+.hide{display:none!important}
+@media(max-width:640px){header h1{font-size:16px}main{padding:12px}.actions button,.actions a.btn{flex-basis:100%}}
+</style>
+</head>
+<body>
+<header>
+ <h1>Identify instrument</h1>
+ <nav>
+  <a class="nav" href="home.html">Home</a>
+  <a class="nav" href="index.html">Inventory</a>
+  <button type="button" id="btnLog">Log</button>
+  <button type="button" id="btnSettings">Settings</button>
+ </nav>
+</header>
+<p class="banner" role="note">Training and reference tool only. Always verify against the count sheet and IFU.</p>
+<main>
+<section id="viewCamera">
+ <div class="stage">
+  <video id="cam" playsinline webkit-playsinline autoplay muted></video>
+  <p class="overlay">Place one instrument on a plain, light background.</p>
+ </div>
+ <p id="camStatus" class="mut">Tap Start camera to use the rear camera, or upload a photo.</p>
+ <p id="keyStatus" class="mut"></p>
+ <div class="actions">
+  <button type="button" class="pri" id="btnStart">Start camera</button>
+  <button type="button" class="pri hide" id="btnCapture">Capture</button>
+  <button type="button" id="btnUpload">Upload a photo</button>
+  <button type="button" id="btnDemoCam">Use demo (no key)</button>
+ </div>
+ <input id="filePick" class="filepick" type="file" accept="image/*" aria-label="Upload a photo of one instrument">
+</section>
+
+<section id="viewReview" class="hide">
+ <img id="reviewImg" class="shot" alt="Photo to identify">
+ <p class="mut">The photo stays on this device unless you press Identify, which sends it to the endpoint in Settings.</p>
+ <p id="reviewMsg" class="msg hide" role="status"></p>
+ <div class="actions">
+  <button type="button" class="pri" id="btnIdentify">Identify</button>
+  <button type="button" id="btnDemoReview">Use demo (no key)</button>
+  <button type="button" id="btnRetakeReview">Retake</button>
+ </div>
+</section>
+
+<section id="viewResults" class="hide"></section>
+<section id="viewLog" class="hide"></section>
+</main>
+
+<div id="settingsOv" class="ov hide">
+ <div class="modal" role="dialog" aria-labelledby="settingsTitle">
+  <h2 id="settingsTitle">Model settings</h2>
+  <p class="mut">Live identification sends your photo to your selected provider and may incur a charge per request. Demo mode is free. Paste your own key for an OpenAI-compatible chat-completions endpoint (OpenAI, xAI, or OpenRouter). The key is stored only in localStorage on this device. It is not written into the app and it is not logged. It is sent only as the Authorization header to the endpoint you set.</p>
+  <p class="mut">Do not photograph patient labels. This page does not automatically remove patient information.</p>
+  <div class="presets">
+   <button type="button" data-preset="openai">OpenAI</button>
+   <button type="button" data-preset="xai">xAI</button>
+   <button type="button" data-preset="openrouter">OpenRouter</button>
+  </div>
+  <form id="settingsForm">
+   <label for="baseUrl">Base URL</label>
+   <input id="baseUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" required>
+   <label for="model">Model</label>
+   <input id="model" type="text" autocomplete="off" spellcheck="false" required>
+   <label for="apiKey">API key</label>
+   <input id="apiKey" type="password" autocomplete="off" spellcheck="false" autocapitalize="off">
+   <p id="keyLine" class="mut"></p>
+   <p id="settingsMsg" class="msg hide" role="status"></p>
+   <div class="actions">
+    <button type="button" id="btnRemoveKey" class="dan">Remove key</button>
+    <button type="button" id="btnCloseSettings">Close</button>
+    <button type="submit" class="pri">Save settings</button>
+   </div>
+  </form>
+ </div>
+</div>
+
+<script>
+"use strict";
+/* @id-core */
+var MATCH_THRESHOLD = 0.72;
+
+function normalizeLabel(value) {
+  return String(value == null ? "" : value).toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function tokensOf(s) {
+  return s ? s.split(" ").filter(Boolean) : [];
+}
+
+function jaccard(a, b) {
+  var ta = tokensOf(a), tb = tokensOf(b);
+  if (!ta.length || !tb.length) return 0;
+  var sb = new Set(tb), seen = new Set(), inter = 0, i;
+  for (i = 0; i < ta.length; i++) {
+    if (seen.has(ta[i])) continue;
+    seen.add(ta[i]);
+    if (sb.has(ta[i])) inter++;
+  }
+  var union = new Set(ta.concat(tb)).size;
+  return union ? inter / union : 0;
+}
+
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  var m = a.length, n = b.length, i, j;
+  if (!m) return n;
+  if (!n) return m;
+  var prev = new Array(n + 1);
+  for (j = 0; j <= n; j++) prev[j] = j;
+  for (i = 1; i <= m; i++) {
+    var cur = new Array(n + 1);
+    cur[0] = i;
+    var ca = a.charCodeAt(i - 1);
+    for (j = 1; j <= n; j++) {
+      var cost = ca === b.charCodeAt(j - 1) ? 0 : 1;
+      var del = prev[j] + 1, ins = cur[j - 1] + 1, sub = prev[j - 1] + cost;
+      cur[j] = del < ins ? (del < sub ? del : sub) : (ins < sub ? ins : sub);
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+
+function similarity(a, b) {
+  if (!a || !b) return 0;
+  if (a.length > 200) a = a.slice(0, 200);
+  if (b.length > 200) b = b.slice(0, 200);
+  if (a === b) return 1;
+  var ta = tokensOf(a), tb = tokensOf(b);
+  var shorter = ta.length <= tb.length ? ta : tb;
+  var longer = ta.length <= tb.length ? tb : ta;
+  var longerSet = new Set(longer);
+  if (shorter.length >= 2 && shorter.every(function (t) { return longerSet.has(t); })) {
+    return 0.86 + 0.14 * (shorter.length / longer.length);
+  }
+  var jac = jaccard(a, b);
+  var lev = 1 - levenshtein(a, b) / Math.max(a.length, b.length);
+  return jac > lev ? jac : lev;
+}
+
+function roundScore(n) {
+  return Math.round(n * 10000) / 10000;
+}
+
+function fuzzyMatchInstruments(identification, instruments, threshold) {
+  var id = identification || {};
+  var qName = normalizeLabel(id.name);
+  var qType = normalizeLabel(id.category);
+  var cutoff = typeof threshold === "number" ? threshold : MATCH_THRESHOLD;
+  var list = Array.isArray(instruments) ? instruments : [];
+  var out = [], i;
+  for (i = 0; i < list.length; i++) {
+    if (!list[i] || typeof list[i] !== "object") continue;
+    var instrument = list[i];
+    var name = normalizeLabel(instrument.instrumentName);
+    var type = normalizeLabel(instrument.instrumentType);
+    var againstName = similarity(qName, name);
+    var againstType = similarity(qName, type);
+    var nameScore = againstName > againstType ? againstName : againstType;
+    var typeToType = qType ? similarity(qType, type) : 0;
+    var score = nameScore;
+    if (typeToType >= 0.9 && nameScore >= 0.5 && nameScore < 1) score = Math.min(0.97, nameScore + 0.03);
+    if (score < cutoff) continue;
+    out.push({
+      instrument: instrument,
+      score: roundScore(score),
+      matchedOn: againstName >= againstType ? "instrumentName" : "instrumentType"
+    });
+  }
+  out.sort(function (a, b) {
+    if (b.score !== a.score) return b.score - a.score;
+    return normalizeLabel(a.instrument.instrumentName).localeCompare(normalizeLabel(b.instrument.instrumentName));
+  });
+  return out;
+}
+
+function stripFenced(text) {
+  var s = String(text == null ? "" : text).trim();
+  var fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  return fence ? fence[1].trim() : s;
+}
+
+function extractJsonObject(text) {
+  var s = stripFenced(text);
+  var start = s.indexOf("{");
+  if (start < 0) throw new Error("The model did not return a JSON object.");
+  var depth = 0, inStr = false, esc = false, i;
+  for (i = start; i < s.length; i++) {
+    var c = s.charAt(i);
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === "\"") inStr = false;
+      continue;
+    }
+    if (c === "\"") inStr = true;
+    else if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) {
+        try { return JSON.parse(s.slice(start, i + 1)); }
+        catch (e) { throw new Error("The model returned JSON that could not be parsed."); }
+      }
+    }
+  }
+  throw new Error("The model did not return a JSON object.");
+}
+
+function clamp01(n) {
+  var x = n;
+  if (typeof x === "string" && x.trim()) x = parseFloat(x);
+  if (typeof x !== "number" || !isFinite(x)) return null;
+  // 0-1 stays a probability. 2-100 is treated as a percent. Values just above 1 are clamped.
+  if (x >= 2 && x <= 100) x = x / 100;
+  if (x < 0) return 0;
+  if (x > 1) return 1;
+  return x;
+}
+
+function itemText(item) {
+  if (typeof item === "string") return item;
+  if (!item || typeof item !== "object") return "";
+  return item.name || item.text || item.pattern || item.feature || "";
+}
+
+function asStringList(v) {
+  var out = [], i, t;
+  if (Array.isArray(v)) {
+    for (i = 0; i < v.length; i++) {
+      t = String(itemText(v[i]) || "").trim();
+      if (t) out.push(t);
+    }
+    return out;
+  }
+  if (typeof v === "string" && v.trim()) return [v.trim()];
+  return out;
+}
+
+function lengthCm(v) {
+  var n = null;
+  if (typeof v === "number" && isFinite(v)) n = v;
+  else if (typeof v === "string") {
+    var m = v.match(/(\d+(\.\d+)?)/);
+    if (m) n = parseFloat(m[1]);
+  }
+  if (n == null || !isFinite(n) || n < 0) return null;
+  return Math.round(n * 10) / 10;
+}
+
+function normalizeAlternative(item) {
+  if (typeof item === "string") {
+    var named = item.trim();
+    if (!named) return null;
+    return { name: named, category: "", confidence: null };
+  }
+  if (!item || typeof item !== "object") return null;
+  var name = String(item.name || item.instrument || "").trim();
+  if (!name) return null;
+  var confidence = item.confidence != null ? item.confidence : item.score;
+  return {
+    name: name,
+    category: String(item.category || item.type || "").trim(),
+    confidence: clamp01(confidence)
+  };
+}
+
+function parseIdentificationJson(input) {
+  var raw = typeof input === "string" ? extractJsonObject(input) : input;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("The model did not return a JSON object.");
+  var name = String(raw.name || raw.instrument_name || raw.instrumentName || "").trim();
+  if (!name) throw new Error("The model JSON did not include an instrument name.");
+  var category = String(raw.category || raw.instrument_type || raw.instrumentType || "").trim();
+  var altsIn = Array.isArray(raw.top_3_alternatives) ? raw.top_3_alternatives
+    : Array.isArray(raw.top3Alternatives) ? raw.top3Alternatives
+    : Array.isArray(raw.alternatives) ? raw.alternatives : [];
+  var alternatives = [], i, alt;
+  for (i = 0; i < altsIn.length && alternatives.length < 3; i++) {
+    alt = normalizeAlternative(altsIn[i]);
+    if (alt) alternatives.push(alt);
+  }
+  var confidence = clamp01(raw.confidence);
+  return {
+    name: name,
+    category: category,
+    likely_patterns: asStringList(raw.likely_patterns || raw.likelyPatterns || raw.patterns),
+    estimated_length_cm: lengthCm(raw.estimated_length_cm != null ? raw.estimated_length_cm : raw.estimatedLengthCm),
+    key_features_seen: asStringList(raw.key_features_seen || raw.keyFeaturesSeen || raw.features),
+    confidence: confidence == null ? 0 : confidence,
+    top_3_alternatives: alternatives
+  };
+}
+
+function extractMessageText(data) {
+  if (!data || typeof data !== "object") throw new Error("The model response was not JSON.");
+  if (data.error) {
+    var err = data.error;
+    var msg = typeof err === "string" ? err : (err.message || "The model returned an error.");
+    throw new Error(String(msg));
+  }
+  var choices = data.choices;
+  if (!Array.isArray(choices) || !choices.length) throw new Error("The model response had no choices.");
+  var choice = choices[0] || {};
+  var message = choice.message || {};
+  var content = message.content != null ? message.content : choice.text;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    var parts = [], i, p;
+    for (i = 0; i < content.length; i++) {
+      p = content[i];
+      if (typeof p === "string") parts.push(p);
+      else if (p && typeof p.text === "string") parts.push(p.text);
+      else if (p && typeof p.content === "string") parts.push(p.content);
+    }
+    return parts.join("\n");
+  }
+  throw new Error("The model response did not include text.");
+}
+
+function completionsUrl(baseUrl) {
+  var raw = String(baseUrl == null ? "" : baseUrl).trim();
+  var url;
+  try { url = new URL(raw); }
+  catch (e) { throw new Error("The base URL is not a valid URL."); }
+  var host = url.hostname;
+  var local = host === "localhost" || host === "127.0.0.1";
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && local)) throw new Error("Use an https endpoint.");
+  var path = url.pathname.replace(/\/+$/, "");
+  if (!/\/chat\/completions$/.test(path)) path += "/chat/completions";
+  url.pathname = path;
+  url.search = "";
+  url.hash = "";
+  url.username = "";
+  url.password = "";
+  return url.toString();
+}
+
+function demoIdentification() {
+  return parseIdentificationJson({
+    name: "Mayo Scissors",
+    category: "Scissors",
+    likely_patterns: ["straight blades"],
+    estimated_length_cm: 17,
+    key_features_seen: ["ring handles", "straight blades", "blunt tips"],
+    confidence: 0.62,
+    top_3_alternatives: [
+      { name: "Metzenbaum Scissors", category: "Scissors", confidence: 0.21 },
+      { name: "Operating Scissors", category: "Scissors", confidence: 0.11 },
+      { name: "Mayo-Hegar Needle Holder", category: "Needle Holder", confidence: 0.06 }
+    ],
+    catalog_number: "DO-NOT-KEEP",
+    patient_name: "DO-NOT-KEEP"
+  });
+}
+
+function csvCell(value) {
+  var s = value == null ? "" : String(value);
+  if (/^[=+\-@]/.test(s)) s = "'" + s;
+  if (/[",\n\r]/.test(s)) return "\"" + s.replace(/"/g, "\"\"") + "\"";
+  return s;
+}
+
+function feedbackCsv(log) {
+  var header = ["timestamp", "source", "ai_name", "ai_category", "ai_confidence", "likely_patterns", "key_features_seen", "estimated_length_cm", "alternatives", "verdict", "corrected_name"];
+  var lines = [header.join(",")];
+  var rows = Array.isArray(log) ? log : [];
+  var i;
+  for (i = 0; i < rows.length; i++) {
+    var row = rows[i] || {};
+    var ai = row.ai || {};
+    var correction = row.correction || {};
+    var alts = Array.isArray(ai.top_3_alternatives) ? ai.top_3_alternatives.map(function (a) {
+      if (!a || !a.name) return "";
+      return a.name + (typeof a.confidence === "number" ? " (" + a.confidence + ")" : "");
+    }).filter(Boolean).join(" | ") : "";
+    var cells = [
+      row.timestamp || "",
+      row.source || "",
+      ai.name || "",
+      ai.category || "",
+      ai.confidence == null ? "" : ai.confidence,
+      Array.isArray(ai.likely_patterns) ? ai.likely_patterns.join(" | ") : "",
+      Array.isArray(ai.key_features_seen) ? ai.key_features_seen.join(" | ") : "",
+      ai.estimated_length_cm == null ? "" : ai.estimated_length_cm,
+      alts,
+      correction.verdict || "",
+      correction.name || ""
+    ];
+    lines.push(cells.map(csvCell).join(","));
+  }
+  return lines.join("\r\n");
+}
+
+function accuracyFromLog(log) {
+  var rows = Array.isArray(log) ? log : [];
+  var correct = 0, wrong = 0, demo = 0, i, verdict, row;
+  for (i = 0; i < rows.length; i++) {
+    row = rows[i];
+    verdict = row && row.correction && row.correction.verdict;
+    if (verdict !== "correct" && verdict !== "wrong") continue;
+    if (verdict === "correct") correct++;
+    else wrong++;
+    if (row.source === "demo") demo++;
+  }
+  var reviewed = correct + wrong;
+  return { reviewed: reviewed, correct: correct, wrong: wrong, demo: demo, accuracy: reviewed ? correct / reviewed : null };
+}
+/* @id-core-end */
+
+var KEY_INST = "surgicalInventory.v1";
+var KEY_LOG = "surgicalCopilot.idLog.v1";
+var KEY_SETTINGS = "surgicalCopilot.idSettings.v1";
+var THUMB_LIMIT = 50 * 1024;
+var DEFAULTS = { baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini", apiKey: "" };
+var PRESETS = [
+  { id: "openai", label: "OpenAI", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
+  { id: "xai", label: "xAI", baseUrl: "https://api.x.ai/v1", model: "grok-2-vision-1212" },
+  { id: "openrouter", label: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", model: "openai/gpt-4o-mini" }
+];
+var IDENTIFY_PROMPT = [
+  "You are helping a sterile processing technician practice instrument identification. The photo should show one surgical instrument on a plain background.",
+  "Return only a JSON object with exactly these keys:",
+  '{"name":"common name","category":"Forceps, Scissors, Retractor, Clamp, Needle Holder, Suction, Knife Handle, or another category","likely_patterns":["short visible pattern"],"estimated_length_cm":16,"key_features_seen":["features you can actually see"],"confidence":0.0,"top_3_alternatives":[{"name":"string","category":"string","confidence":0.0}]}',
+  "Rules:",
+  "- confidence is a number from 0 to 1.",
+  "- estimated_length_cm is a number, or null if scale is unclear. top_3_alternatives has at most 3 items.",
+  "- Never guess, invent, or include a catalog number, part number, SKU, or manufacturer item code.",
+  "- Do not identify a person and do not read patient names, dates of birth, or medical record numbers. Ignore any patient label.",
+  "- If the photo does not show one instrument, set name to \"Not a single instrument\", explain what you see in key_features_seen, and set confidence below 0.3.",
+  "- Use only what is visible. This result is a training hint and must be verified against the count sheet and the IFU.",
+  "- No markdown and no text outside the JSON object."
+].join("\n");
+
+var cameraGen = 0;
+var state = { screen: "viewCamera", photo: null, result: null, source: null, matches: [], logged: false, saving: false, addedId: null, busy: false, abort: null, beforeLog: "viewCamera" };
+var $ = function (id) { return document.getElementById(id); };
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c];
+  });
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function readArray(key) {
+  var raw = localStorage.getItem(key);
+  if (raw == null) return { ok: true, value: [] };
+  try {
+    var v = JSON.parse(raw);
+    if (!Array.isArray(v)) return { ok: false, value: [] };
+    return { ok: true, value: v };
+  } catch (e) { return { ok: false, value: [] }; }
+}
+function loadSettings() {
+  var base = { baseUrl: DEFAULTS.baseUrl, model: DEFAULTS.model, apiKey: "" };
+  try {
+    var v = JSON.parse(localStorage.getItem(KEY_SETTINGS) || "null");
+    if (!v || typeof v !== "object") return base;
+    if (typeof v.baseUrl === "string" && v.baseUrl.trim()) base.baseUrl = v.baseUrl.trim();
+    if (typeof v.model === "string" && v.model.trim()) base.model = v.model.trim();
+    if (typeof v.apiKey === "string") base.apiKey = v.apiKey.trim();
+  } catch (e) {}
+  return base;
+}
+function redact(message, secret) {
+  var s = String(message || "Something went wrong.");
+  if (secret && secret.length >= 8 && s.indexOf(secret) !== -1) s = s.split(secret).join("[key]");
+  if (s.length > 320) s = s.slice(0, 320) + "...";
+  return s;
+}
+function show(id) {
+  if (id !== "viewLog") state.beforeLog = id;
+  state.screen = id;
+  ["viewCamera", "viewReview", "viewResults", "viewLog"].forEach(function (v) {
+    $(v).classList.toggle("hide", v !== id);
+  });
+  if (id !== "viewCamera") stopCamera();
+}
+function setText(id, text, isError) {
+  var el = $(id);
+  if (!el) return;
+  if (!text) { el.textContent = ""; el.classList.add("hide"); return; }
+  el.textContent = text;
+  el.classList.remove("hide");
+  el.classList.toggle("bad", !!isError);
+}
+var statusSeq = 0;
+function setCamStatus(text) {
+  statusSeq++;
+  $("camStatus").textContent = text || "";
+}
+function renderKeyLine() {
+  var s = loadSettings();
+  var host = "the saved endpoint";
+  try { host = new URL(s.baseUrl).host; } catch (e) {}
+  $("keyStatus").textContent = (s.apiKey ? "API key saved on this device." : "No API key saved.") + " Endpoint " + host + ", model " + s.model + ".";
+}
+
+function stopCamera() {
+  cameraGen++;
+  var video = $("cam");
+  var stream = video.srcObject;
+  if (stream && stream.getTracks) stream.getTracks().forEach(function (t) { t.stop(); });
+  video.srcObject = null;
+  $("btnStart").classList.remove("hide");
+  $("btnCapture").classList.add("hide");
+}
+function cameraErrorText(e) {
+  if (!window.isSecureContext) return "The live camera needs HTTPS. You can still upload a photo or use demo.";
+  if (e && e.name === "NotAllowedError") return "Camera permission was denied. Allow the camera, or upload a photo.";
+  if (e && e.name === "NotFoundError") return "No camera was found. Upload a photo instead.";
+  return "The camera did not start. Upload a photo, or tap Start camera again.";
+}
+async function startCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setCamStatus("This browser has no camera API. Upload a photo instead.");
+    return;
+  }
+  if (!window.isSecureContext) {
+    setCamStatus(cameraErrorText());
+    return;
+  }
+  var existing = $("cam").srcObject;
+  if (existing && existing.getTracks) existing.getTracks().forEach(function (t) { t.stop(); });
+  var gen = ++cameraGen;
+  var seqAtStart = statusSeq;
+  var stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" } } });
+  } catch (e) {
+    if (e && e.name !== "NotAllowedError" && e.name !== "NotFoundError") {
+      try { stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true }); }
+      catch (e2) { if (gen === cameraGen) setCamStatus(cameraErrorText(e2)); return; }
+    } else { if (gen === cameraGen) setCamStatus(cameraErrorText(e)); return; }
+  }
+  if (gen !== cameraGen) {
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+    return;
+  }
+  var video = $("cam");
+  video.srcObject = stream;
+  video.playsInline = true;
+  try { await video.play(); } catch (e) {}
+  $("btnStart").classList.add("hide");
+  $("btnCapture").classList.remove("hide");
+  if (statusSeq === seqAtStart) setCamStatus("Rear camera is on when the device has one. Place one instrument in the frame, then capture.");
+}
+
+function mediaSize(media) {
+  return { w: media.videoWidth || media.naturalWidth || media.width || 0, h: media.videoHeight || media.naturalHeight || media.height || 0 };
+}
+function downscale(media, maxEdge, quality) {
+  var size = mediaSize(media);
+  var edge = Math.max(size.w, size.h) || 1;
+  var scale = Math.min(1, maxEdge / edge);
+  var canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(size.w * scale));
+  canvas.height = Math.max(1, Math.round(size.h * scale));
+  canvas.getContext("2d").drawImage(media, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+function loadImage(src) {
+  return new Promise(function (resolve, reject) {
+    var img = new Image();
+    img.onload = function () { resolve(img); };
+    img.onerror = function () { reject(new Error("That image could not be opened.")); };
+    img.src = src;
+  });
+}
+function readFile(file) {
+  return new Promise(function (resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function () { resolve(reader.result); };
+    reader.onerror = function () { reject(new Error("The file could not be read.")); };
+    reader.readAsDataURL(file);
+  });
+}
+async function makeThumbnail(dataUrl) {
+  if (!dataUrl) return null;
+  try {
+    var img = await loadImage(dataUrl);
+    var attempts = [[160, 0.6], [128, 0.45], [96, 0.4]];
+    for (var i = 0; i < attempts.length; i++) {
+      var url = downscale(img, attempts[i][0], attempts[i][1]);
+      if (url && url.length <= THUMB_LIMIT) return url;
+    }
+  } catch (e) {}
+  return null;
+}
+function onCapture() {
+  var video = $("cam");
+  var size = mediaSize(video);
+  if (!size.w || !size.h) { setCamStatus("The camera has no picture yet. Wait a moment and try again."); return; }
+  state.photo = downscale(video, 1280, 0.85);
+  stopCamera();
+  showReview();
+}
+async function onFile(file) {
+  if (!file) return;
+  if (file.type && file.type.indexOf("image/") !== 0) { setCamStatus("Choose an image file."); return; }
+  try {
+    var img = await loadImage(await readFile(file));
+    state.photo = downscale(img, 1280, 0.85);
+    stopCamera();
+    showReview();
+  } catch (e) { setCamStatus(e.message || "That image could not be opened."); }
+}
+function showReview() {
+  $("reviewImg").src = state.photo || "";
+  setText("reviewMsg", "");
+  $("btnIdentify").disabled = false;
+  show("viewReview");
+}
+function goCamera() {
+  if (state.abort) state.abort.abort();
+  state.busy = false;
+  state.photo = null;
+  state.result = null;
+  show("viewCamera");
+  startCamera().catch(function (e) { setCamStatus(cameraErrorText(e)); });
+}
+
+async function callModel(dataUrl, settings, signal) {
+  var url = completionsUrl(settings.baseUrl);
+  if (!String(settings.model || "").trim()) throw new Error("Enter a model name in Settings.");
+  var headers = { "Content-Type": "application/json", "Authorization": "Bearer " + settings.apiKey };
+  var host = new URL(url).hostname;
+  if (host === "openrouter.ai" || host.slice(-14) === ".openrouter.ai") {
+    headers["HTTP-Referer"] = location.origin + location.pathname;
+    headers["X-Title"] = "SPD Copilot";
+  }
+  var body = {
+    model: settings.model.trim(),
+    max_tokens: 800,
+    messages: [{ role: "user", content: [
+      { type: "text", text: IDENTIFY_PROMPT },
+      { type: "image_url", image_url: { url: dataUrl } }
+    ]}]
+  };
+  var res;
+  try {
+    res = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body), signal: signal });
+  } catch (e) {
+    if (e && e.name === "AbortError") throw e;
+    throw new Error("The browser could not reach the endpoint. Check the base URL and that the provider allows requests from this page.");
+  }
+  var raw = await res.text();
+  var data;
+  try { data = JSON.parse(raw); }
+  catch (e) { throw new Error(res.ok ? "The endpoint did not return JSON." : "The model request failed (" + res.status + ")."); }
+  if (!res.ok) {
+    var err = data && data.error ? (data.error.message || data.error) : ("The model request failed (" + res.status + ").");
+    throw new Error(typeof err === "string" ? err : "The model request failed.");
+  }
+  return extractMessageText(data);
+}
+async function onIdentify() {
+  if (state.busy) return;
+  var settings = loadSettings();
+  if (!settings.apiKey) { setText("reviewMsg", "No API key saved. Open Settings to add one, or use demo.", true); return; }
+  if (!state.photo) { setText("reviewMsg", "Capture or upload a photo first.", true); return; }
+  state.busy = true;
+  state.abort = new AbortController();
+  $("btnIdentify").disabled = true;
+  setText("reviewMsg", "Sending the photo to the model...");
+  try {
+    var text = await callModel(state.photo, settings, state.abort.signal);
+    showResult(parseIdentificationJson(text), "model");
+  } catch (e) {
+    if (e && e.name === "AbortError") return;
+    setText("reviewMsg", redact(e.message, settings.apiKey), true);
+    $("btnIdentify").disabled = false;
+  } finally { state.busy = false; }
+}
+function onDemo() {
+  if (state.abort) state.abort.abort();
+  state.busy = false;
+  showResult(demoIdentification(), "demo");
+}
+function showResult(result, source) {
+  state.result = result;
+  state.source = source;
+  state.logged = false;
+  state.saving = false;
+  state.addedId = null;
+  var parsed = readArray(KEY_INST);
+  state.inventoryOk = parsed.ok;
+  state.matches = parsed.ok ? fuzzyMatchInstruments(result, parsed.value) : [];
+  renderResults();
+  show("viewResults");
+}
+
+function blankInstrument(name, type) {
+  return {
+    id: uid(), instrumentType: type, instrumentName: name, manufacturer: "", description: "", catalogNumber: "",
+    distributor: "", representativeName: "", representativePhone: "", representativeEmail: "",
+    currentQuantity: 0, desiredQuantity: 0, quantityRequestedForQuote: 0, quoteRequestDate: "",
+    quoteStatus: "Not Requested", quoteNumber: "", quotedPrice: "", quantityOrdered: 0, orderDate: "",
+    purchaseOrderNumber: "", quantityReceived: 0, receivedDate: "", awaitingApproval: false, statusOverride: ""
+  };
+}
+function pct(n) { return Math.round((n || 0) * 100) + "%"; }
+function renderResults() {
+  var r = state.result;
+  var alts = r.top_3_alternatives || [];
+  var demo = state.source === "demo";
+  var html = "";
+  if (state.photo) html += '<img id="resultImg" class="shot" alt="Captured instrument">';
+  else html += '<p class="mut">No photo attached.</p>';
+  html += '<article class="panel"><p class="kicker">Top match</p><h2>' + esc(r.name) + "</h2>";
+  if (demo) html += '<p class="msg">Demo result. This is a fixed example and is not a reading of a photo. Nothing was sent to a model.</p>';
+  html += "<p>Confidence " + pct(r.confidence) + "</p><div class=\"meter\"><span style=\"width:" + pct(r.confidence) + "\"></span></div>";
+  html += "<p><b>Category.</b> " + esc(r.category || "Not given") + "</p>";
+  html += "<p><b>Estimated length.</b> " + (r.estimated_length_cm == null ? "Not estimated" : esc(r.estimated_length_cm + " cm")) + "</p>";
+  html += "<p><b>Patterns.</b></p>" + listHtml(r.likely_patterns);
+  html += "<p><b>Features seen.</b></p>" + listHtml(r.key_features_seen);
+  html += "<p><b>Alternatives.</b></p>" + altHtml(alts) + "</article>";
+  html += '<div class="panel"><h3>Was this right?</h3>';
+  if (state.logged) html += '<p class="msg">Saved to the feedback log.</p>';
+  else {
+    html += '<div class="actions"><button type="button" class="pri" id="btnCorrect">Correct</button><button type="button" id="btnWrong">Wrong</button><button type="button" id="btnRetake">Retake</button></div>';
+    html += '<form id="wrongForm" class="hide"><p>Pick an alternative or type the right name.</p><div class="actions" id="altPicks">';
+    alts.forEach(function (a, i) {
+      html += '<button type="button" data-alt="' + i + '">' + esc(a.name) + "</button>";
+    });
+    html += '</div><label for="rightName">Right name</label><input id="rightName" autocomplete="off"><p id="wrongMsg" class="msg hide"></p><div class="actions"><button type="submit" class="pri">Save correction</button></div></form>';
+  }
+  if (state.logged) html += '<div class="actions"><button type="button" id="btnRetake">Retake</button><button type="button" id="btnResultLog">View log</button></div>';
+  html += "</div>";
+  html += inventoryHtml();
+  html += '<p id="resultMsg" class="msg hide"></p>';
+  $("viewResults").innerHTML = html;
+  var img = $("resultImg");
+  if (img && state.photo) img.src = state.photo;
+  var correct = $("btnCorrect");
+  if (correct) correct.onclick = onCorrect;
+  var wrong = $("btnWrong");
+  if (wrong) wrong.onclick = function () { $("wrongForm").classList.remove("hide"); };
+  var retake = $("btnRetake");
+  if (retake) retake.onclick = goCamera;
+  var toLog = $("btnResultLog");
+  if (toLog) toLog.onclick = openLog;
+  document.querySelectorAll("[data-alt]").forEach(function (btn) {
+    btn.onclick = function () { $("rightName").value = alts[+btn.getAttribute("data-alt")].name; };
+  });
+  var form = $("wrongForm");
+  if (form) form.onsubmit = onWrong;
+  var add = $("addForm");
+  if (add) add.onsubmit = onAdd;
+}
+function listHtml(items) {
+  if (!items || !items.length) return '<p class="mut">None noted</p>';
+  return "<ul>" + items.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>";
+}
+function altHtml(alts) {
+  if (!alts.length) return '<p class="mut">None returned</p>';
+  return "<ul>" + alts.map(function (a) {
+    var conf = a.confidence == null ? "" : " (" + pct(a.confidence) + ")";
+    return "<li>" + esc(a.name) + (a.category ? " · " + esc(a.category) : "") + conf + "</li>";
+  }).join("") + "</ul>";
+}
+function inventoryHtml() {
+  if (!state.inventoryOk) return '<div class="panel"><h3>Inventory</h3><p>Inventory data in this browser could not be read, so nothing was matched or added.</p></div>';
+  if (state.addedId) return '<div class="panel"><h3>Inventory</h3><p>Added to inventory with the name and type below. Catalog number was left blank.</p><div class="actions"><a class="btn pri" href="index.html">Open in inventory</a></div></div>';
+  if (state.matches.length) {
+    var top = state.matches[0];
+    var more = state.matches.slice(1, 3).map(function (m) {
+      return esc(m.instrument.instrumentName || "Untitled") + " (" + pct(m.score) + ")";
+    }).join(", ");
+    return '<div class="panel"><h3>Inventory</h3><p>Closest match: <b>' + esc(top.instrument.instrumentName || "Untitled") + "</b> · " + esc(top.instrument.instrumentType || "No type") + " · " + pct(top.score) + " on " + (top.matchedOn === "instrumentType" ? "type" : "name") + ".</p>" +
+      (more ? '<p class="mut">Also similar: ' + more + ".</p>" : "") +
+      '<div class="actions"><a class="btn pri" href="index.html">Open in inventory</a></div></div>';
+  }
+  var name = state.result ? state.result.name : "";
+  var type = state.result ? state.result.category : "";
+  return '<div class="panel"><h3>Inventory</h3><p>No close match in this browser. Add it with the name and type filled in. Catalog number stays blank.</p><form id="addForm"><label for="addName">Instrument name</label><input id="addName" required value="' + esc(name) + '"><label for="addType">Instrument type</label><input id="addType" value="' + esc(type) + '"><p id="addMsg" class="msg hide"></p><div class="actions"><button type="submit" class="pri">Add to inventory</button></div></form></div>';
+}
+async function onCorrect() {
+  if (!state.result || state.logged || state.saving) return;
+  state.saving = true;
+  try {
+    await saveFeedback("correct", state.result.name);
+    state.logged = true;
+    renderResults();
+  } catch (e) {
+    state.saving = false;
+    setText("resultMsg", "The feedback could not be saved on this device.", true);
+  }
+}
+async function onWrong(e) {
+  e.preventDefault();
+  if (!state.result || state.logged || state.saving) return;
+  var name = $("rightName").value.trim();
+  if (!name) { setText("wrongMsg", "Type the right name, or pick an alternative.", true); return; }
+  if (normalizeLabel(name) === normalizeLabel(state.result.name)) { setText("wrongMsg", "That is the same name. Use Correct, or type a different name.", true); return; }
+  state.saving = true;
+  try {
+    await saveFeedback("wrong", name);
+    state.logged = true;
+    renderResults();
+  } catch (err) {
+    state.saving = false;
+    setText("wrongMsg", "The feedback could not be saved on this device.", true);
+  }
+}
+async function saveFeedback(verdict, correctedName) {
+  var parsed = readArray(KEY_LOG);
+  if (!parsed.ok) throw new Error("The feedback log could not be read.");
+  var entry = {
+    id: uid(),
+    timestamp: new Date().toISOString(),
+    source: state.source === "demo" ? "demo" : "model",
+    ai: state.result,
+    correction: { verdict: verdict, name: correctedName },
+    thumbnail: null
+  };
+  parsed.value.push(entry);
+  try { localStorage.setItem(KEY_LOG, JSON.stringify(parsed.value)); }
+  catch (e) {
+    entry.thumbnail = null;
+    var retry = readArray(KEY_LOG);
+    if (!retry.ok) throw e;
+    retry.value.push(entry);
+    localStorage.setItem(KEY_LOG, JSON.stringify(retry.value));
+  }
+}
+function onAdd(e) {
+  e.preventDefault();
+  var parsed = readArray(KEY_INST);
+  if (!parsed.ok) { setText("addMsg", "Inventory data could not be read, so nothing was added.", true); return; }
+  var name = $("addName").value.trim();
+  var type = $("addType").value.trim();
+  if (!name) { setText("addMsg", "Enter an instrument name.", true); return; }
+  var exists = parsed.value.some(function (i) { return i && normalizeLabel(i.instrumentName) === normalizeLabel(name); });
+  if (exists) { setText("addMsg", "That name is already in inventory. Use Open in inventory after a match, or choose a different name.", true); return; }
+  var row = blankInstrument(name, type);
+  parsed.value.push(row);
+  localStorage.setItem(KEY_INST, JSON.stringify(parsed.value));
+  state.addedId = row.id;
+  state.matches = fuzzyMatchInstruments(state.result, parsed.value);
+  renderResults();
+}
+
+function summaryText(summary) {
+  if (!summary.reviewed) return "No reviewed identifications yet. Mark a result Correct or Wrong to start the log.";
+  var acc = Math.round(summary.accuracy * 100) + "%";
+  var text = "Reviewed " + summary.reviewed + ". Correct " + summary.correct + ". Wrong " + summary.wrong + ". Accuracy " + acc + ".";
+  if (summary.demo) text += " Demo entries in that count: " + summary.demo + ".";
+  return text;
+}
+function renderLog() {
+  var parsed = readArray(KEY_LOG);
+  var html = '<div class="panel"><h2>Feedback log</h2>';
+  if (!parsed.ok) {
+    html += '<p>The feedback log in this browser could not be read. It was not overwritten.</p></div>';
+    $("viewLog").innerHTML = html;
+    return;
+  }
+  var summary = accuracyFromLog(parsed.value);
+  html += "<p>" + esc(summaryText(summary)) + "</p>";
+  html += '<p class="mut">The log stores the model answer, your correction, and the time. New feedback entries do not save photo thumbnails. Photos can contain patient information. Older thumbnails may remain in existing logs and backups. The API key is excluded.</p>';
+  html += '<div class="actions"><button type="button" id="btnExport">Export CSV</button><button type="button" class="dan" id="btnClearLog">Clear log</button><button type="button" id="btnBackLog">Back</button></div></div>';
+  if (!parsed.value.length) html += '<div class="panel"><p class="mut">The log is empty.</p></div>';
+  else {
+    html += '<div class="panel"><ul class="loglist">';
+    var rows = parsed.value.slice().reverse();
+    rows.forEach(function (row) {
+      var ai = row.ai || {};
+      var correction = row.correction || {};
+      var verdict = correction.verdict === "correct" ? "Correct" : correction.verdict === "wrong" ? "Wrong" : "Unreviewed";
+      var cls = correction.verdict === "correct" ? "ok" : "badb";
+      html += "<li>";
+      if (row.thumbnail) html += '<img alt="" src="' + esc(row.thumbnail) + '">';
+      html += "<div><b>" + esc(ai.name || "Untitled") + '</b> <span class="badge ' + cls + '">' + verdict + "</span>";
+      html += '<div class="mut">' + esc(row.timestamp || "") + " · " + esc(row.source || "") + " · " + pct(ai.confidence) + "</div>";
+      if (correction.verdict === "wrong") html += "<div>Corrected to " + esc(correction.name || "") + "</div>";
+      html += "</div></li>";
+    });
+    html += "</ul></div>";
+  }
+  $("viewLog").innerHTML = html;
+  $("btnExport").onclick = exportCsv;
+  $("btnClearLog").onclick = function () {
+    if (!confirm("Delete the identification feedback log on this device?")) return;
+    localStorage.removeItem(KEY_LOG);
+    renderLog();
+  };
+  $("btnBackLog").onclick = function () {
+    var dest = state.beforeLog || "viewCamera";
+    show(dest);
+    if (dest === "viewCamera") startCamera().catch(function (e) { setCamStatus(cameraErrorText(e)); });
+  };
+}
+function exportCsv() {
+  var parsed = readArray(KEY_LOG);
+  if (!parsed.ok) return;
+  var blob = new Blob(["\uFEFF" + feedbackCsv(parsed.value)], { type: "text/csv;charset=utf-8" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "instrument-id-log-" + new Date().toISOString().slice(0, 10) + ".csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+}
+function openLog() {
+  if (state.screen !== "viewLog") state.beforeLog = state.screen;
+  renderLog();
+  show("viewLog");
+}
+
+function openSettings() {
+  var s = loadSettings();
+  $("baseUrl").value = s.baseUrl;
+  $("model").value = s.model;
+  $("apiKey").value = "";
+  $("apiKey").placeholder = s.apiKey ? "Saved on this device. Paste a new key to replace it." : "Paste your API key";
+  $("keyLine").textContent = s.apiKey ? "A key is saved in this browser. It is not shown again." : "No key saved.";
+  setText("settingsMsg", "");
+  $("settingsOv").classList.remove("hide");
+}
+function closeSettings() { $("settingsOv").classList.add("hide"); }
+function saveSettings(e) {
+  e.preventDefault();
+  var current = loadSettings();
+  var typed = $("apiKey").value.trim();
+  var baseUrl = $("baseUrl").value.trim();
+  var model = $("model").value.trim();
+  try { completionsUrl(baseUrl); }
+  catch (err) { setText("settingsMsg", err.message, true); return; }
+  if (!model) { setText("settingsMsg", "Enter a model name.", true); return; }
+  var endpointChanged = completionsUrl(baseUrl) !== completionsUrl(current.baseUrl);
+  var next = { baseUrl: baseUrl, model: model, apiKey: typed || (endpointChanged ? "" : current.apiKey) };
+  localStorage.setItem(KEY_SETTINGS, JSON.stringify(next));
+  $("apiKey").value = "";
+  $("apiKey").placeholder = next.apiKey ? "Saved on this device. Paste a new key to replace it." : "Paste your API key";
+  $("keyLine").textContent = next.apiKey ? "A key is saved in this browser. It is not shown again." : "No key saved.";
+  setText("settingsMsg", endpointChanged && !typed ? "Endpoint changed. The previous key was cleared; enter a key for this provider." : (typed ? "Saved on this device." : (next.apiKey ? "Saved. The existing key was kept." : "Saved. No key stored yet.")));
+  renderKeyLine();
+}
+function removeKey() {
+  var s = loadSettings();
+  s.apiKey = "";
+  localStorage.setItem(KEY_SETTINGS, JSON.stringify(s));
+  $("apiKey").value = "";
+  $("apiKey").placeholder = "Paste your API key";
+  $("keyLine").textContent = "No key saved.";
+  setText("settingsMsg", "Key removed from this device.");
+  renderKeyLine();
+}
+
+$("btnStart").onclick = function () { startCamera(); };
+$("btnCapture").onclick = onCapture;
+$("btnUpload").onclick = function () { $("filePick").click(); };
+$("filePick").onchange = function (e) {
+  var file = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (file) onFile(file);
+};
+$("btnDemoCam").onclick = onDemo;
+$("btnDemoReview").onclick = onDemo;
+$("btnIdentify").onclick = onIdentify;
+$("btnRetakeReview").onclick = goCamera;
+$("btnLog").onclick = openLog;
+$("btnSettings").onclick = openSettings;
+$("btnCloseSettings").onclick = closeSettings;
+$("btnRemoveKey").onclick = removeKey;
+$("settingsForm").onsubmit = saveSettings;
+$("settingsOv").addEventListener("click", function (e) { if (e.target === $("settingsOv")) closeSettings(); });
+document.addEventListener("click", function (e) {
+  var preset = e.target.closest && e.target.closest("[data-preset]");
+  if (!preset) return;
+  var found = null;
+  for (var i = 0; i < PRESETS.length; i++) if (PRESETS[i].id === preset.getAttribute("data-preset")) found = PRESETS[i];
+  if (!found) return;
+  $("baseUrl").value = found.baseUrl;
+  $("model").value = found.model;
+  setText("settingsMsg", found.label + " endpoint filled in. Save settings to keep it. Changing the endpoint clears the saved key unless you enter a replacement.");
+});
+document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSettings(); });
+window.addEventListener("pagehide", stopCamera);
+
+renderKeyLine();
+if (!window.isSecureContext) setCamStatus("The live camera needs HTTPS (GitHub Pages works). You can still upload a photo or use demo.");
+else startCamera().catch(function (e) { setCamStatus(cameraErrorText(e)); });
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) { navigator.serviceWorker.register("sw.js").catch(function () {}); }
+</script>
+</body>
+</html>
