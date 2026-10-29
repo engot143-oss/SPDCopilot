@@ -69,7 +69,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f6fafd}td.num{text-align:righ
  <div id="tableArea"></div>
 </section>
 <section id="viewReps" class="hide">
- <div class="toolbar"><h2 style="margin:0;flex:1;font-size:18px">Rep Address Book</h2><button class="pri" id="btnAddRep">Add company</button><button type="button" id="btnImportReps">Import from Rep Database</button></div>
+ <div class="toolbar"><h2 style="margin:0;flex:1;font-size:18px">Rep Address Book</h2><button class="pri" id="btnAddRep">Add representative</button><button type="button" id="btnImportReps">Import from Rep Database</button></div>
  <div id="repsArea"></div>
 </section>
 </main>
@@ -160,12 +160,26 @@ function render(){
 }
 
 function linkedCount(company){ return instruments.filter(i => (i.distributor||"").toLowerCase() === company.toLowerCase()).length; }
+function uniqueCompanies(){
+  const seen = Object.create(null), out = [];
+  reps.forEach(r => {
+    const key = (r.company || "").trim().toLowerCase();
+    if (!key || seen[key]) return;
+    seen[key] = true;
+    out.push(r.company);
+  });
+  return out;
+}
+function repsForCompany(company){
+  const key = (company || "").trim().toLowerCase();
+  return reps.filter(r => (r.company || "").trim().toLowerCase() === key);
+}
 function renderReps(){
   $("repsArea").innerHTML = reps.length ? '<div class="tw"><table><thead><tr><th>Company</th><th>Rep name</th><th>Phone</th><th>Email</th><th>Notes</th><th>Linked instruments</th><th></th></tr></thead><tbody>' +
     reps.map(r => '<tr><td><b>' + esc(r.company) + '</b></td><td>' + (r.repName ? esc(r.repName) : '<span class="mut">Add rep name</span>') + '</td><td>' + (r.repPhone ? esc(r.repPhone) : '<span class="mut">Add phone</span>') +
       '</td><td>' + (r.repEmail ? '<a href="mailto:' + esc(r.repEmail) + '">' + esc(r.repEmail) + '</a>' : '<span class="mut">Add email</span>') + '</td><td>' + esc(r.notes) + '</td><td class="num">' + linkedCount(r.company) +
       '</td><td><button data-editrep="' + esc(r.id) + '">Edit</button> <button class="dan" data-delrep="' + esc(r.id) + '">Delete</button></td></tr>').join("") + "</tbody></table></div>"
-    : '<div class="empty"><h2>No companies in the address book</h2><button class="pri" data-act="addrep">Add company</button></div>';
+    : '<div class="empty"><h2>No representatives in the address book</h2><button class="pri" data-act="addrep">Add representative</button></div>';
 }
 
 /* Modal helpers */
@@ -189,8 +203,10 @@ function showDetail(id){
 }
 function pullFromBook(id){
   const i = instruments.find(x => x.id === id); if (!i) return;
-  const r = reps.find(x => x.company.toLowerCase() === (i.distributor||"").toLowerCase());
-  if (!r) { alert("No address book entry matches distributor \"" + (i.distributor || "(none)") + "\". Edit the instrument to choose a company."); return; }
+  const matches = repsForCompany(i.distributor);
+  if (!matches.length) { alert("No address book entry matches distributor \"" + (i.distributor || "(none)") + "\". Edit the instrument to choose a company."); return; }
+  if (matches.length > 1) { alert("Several representatives are saved for \"" + i.distributor + "\". Edit the instrument and choose the rep fields manually."); return; }
+  const r = matches[0];
   i.representativeName = r.repName; i.representativePhone = r.repPhone; i.representativeEmail = r.repEmail;
   save(); render(); showDetail(id);
 }
@@ -198,8 +214,9 @@ function pullFromBook(id){
 function field(name, label, val, type, extra){ return '<div><label for="f_' + name + '">' + esc(label) + '</label><input id="f_' + name + '" name="' + name + '" type="' + (type||"text") + '" value="' + esc(val) + '"' + (extra||"") + "></div>"; }
 function showForm(id){
   const i = id ? normalize(instruments.find(x => x.id === id)) : blankInstrument();
-  const known = reps.some(r => r.company === i.distributor);
-  const distOpts = '<option value="">(none)</option>' + reps.map(r => '<option' + (r.company === i.distributor ? " selected" : "") + ">" + esc(r.company) + "</option>").join("") +
+  const companies = uniqueCompanies();
+  const known = companies.some(c => c === i.distributor);
+  const distOpts = '<option value="">(none)</option>' + companies.map(c => '<option' + (c === i.distributor ? " selected" : "") + ">" + esc(c) + "</option>").join("") +
     '<option value="__other"' + (i.distributor && !known ? " selected" : "") + ">Custom/Other</option>";
   openModal("<h2>" + (id ? "Edit instrument" : "Add instrument") + '</h2><form id="instForm">' +
     '<h3>Identity</h3><div class="grid">' + field("instrumentName","Instrument name *",i.instrumentName,"text"," required") + field("instrumentType","Instrument type",i.instrumentType) + field("manufacturer","Manufacturer",i.manufacturer) + field("catalogNumber","Catalog #",i.catalogNumber) +
@@ -223,8 +240,16 @@ function showForm(id){
   form.addEventListener("input", upd); upd();
   $("f_dist").addEventListener("change", e => {
     $("otherWrap").classList.toggle("hide", e.target.value !== "__other");
-    const r = reps.find(x => x.company === e.target.value);
-    if (r) { $("f_representativeName").value = r.repName; $("f_representativePhone").value = r.repPhone; $("f_representativeEmail").value = r.repEmail; }
+    const matches = repsForCompany(e.target.value === "__other" ? "" : e.target.value);
+    if (matches.length === 1) {
+      $("f_representativeName").value = matches[0].repName;
+      $("f_representativePhone").value = matches[0].repPhone;
+      $("f_representativeEmail").value = matches[0].repEmail;
+    } else if (matches.length > 1) {
+      $("f_representativeName").value = "";
+      $("f_representativePhone").value = "";
+      $("f_representativeEmail").value = "";
+    }
   });
   form.addEventListener("submit", e => { e.preventDefault(); const o = read(); if (!o.instrumentName.trim()) return;
     const ix = instruments.findIndex(x => x.id === o.id); if (ix >= 0) instruments[ix] = o; else instruments.push(o);
@@ -233,14 +258,18 @@ function showForm(id){
 
 function showRepForm(id){
   const r = reps.find(x => x.id === id) || { id:uid(), company:"", repName:"", repPhone:"", repEmail:"", notes:"" };
-  openModal("<h2>" + (id ? "Edit company" : "Add company") + '</h2><form id="repForm"><div class="grid">' + field("company","Company *",r.company,"text"," required") + field("repName","Rep name",r.repName,"text",' placeholder="Add rep name"') +
+  openModal("<h2>" + (id ? "Edit representative" : "Add representative") + '</h2><form id="repForm"><div class="grid">' + field("company","Company *",r.company,"text"," required") + field("repName","Rep name",r.repName,"text",' placeholder="Add rep name"') +
     field("repPhone","Rep phone",r.repPhone,"tel",' placeholder="Add phone"') + field("repEmail","Rep email",r.repEmail,"email",' placeholder="Add email"') + field("notes","Notes",r.notes,"text",' placeholder="Add notes"') +
     '</div><div class="actions"><button type="button" data-act="close">Cancel</button><button class="pri" type="submit">Save</button></div></form>');
   $("repForm").addEventListener("submit", e => { e.preventDefault(); const f = e.target; const o = { id:r.id };
     ["company","repName","repPhone","repEmail","notes"].forEach(k => o[k] = f.elements[k].value.trim()); if (!o.company) return;
-    if (reps.some(x => x.id !== o.id && x.company.toLowerCase() === o.company.toLowerCase())) { alert("A company with that name already exists."); return; }
+    const dup = reps.find(x => x.id !== o.id && x.company.toLowerCase() === o.company.toLowerCase() && (
+      (o.repEmail && x.repEmail && x.repEmail.toLowerCase() === o.repEmail.toLowerCase()) ||
+      (o.repName && x.repName && x.repName.toLowerCase() === o.repName.toLowerCase())
+    ));
+    if (dup) { alert("That representative is already in the address book for this company."); return; }
     const ix = reps.findIndex(x => x.id === o.id);
-    if (ix >= 0) { const old = reps[ix].company; if (old !== o.company) instruments.forEach(i => { if (i.distributor === old) i.distributor = o.company; }); reps[ix] = o; } else reps.push(o);
+    if (ix >= 0) { const old = reps[ix].company; if (old !== o.company && !repsForCompany(old).some(x => x.id !== o.id)) instruments.forEach(i => { if (i.distributor === old) i.distributor = o.company; }); reps[ix] = o; } else reps.push(o);
     save(); closeModal(); render(); });
 }
 var REP_FIELD_LABEL = { repName: "name", repPhone: "phone", repEmail: "email", notes: "notes" };
@@ -255,9 +284,9 @@ function importRepsFromDatabase() {
   catch (err) { alert("Import failed: " + err.message); return; }
   var summary = result.summary;
   if (!summary.added.length && !summary.filled.length) { alert("Nothing new to import. Existing address-book fields were left as they are."); return; }
-  var html = "<h2>Import from Rep Database</h2><p>Names, phones, emails, and notes that already have text stay as they are. Empty fields can be filled for the same contact. Different representatives at the same company are skipped.</p>";
+  var html = "<h2>Import from Rep Database</h2><p>Each representative becomes their own address-book row. Names, phones, emails, and notes that already have text stay as they are. Empty fields can be filled for a matching person (same company plus matching name or email).</p>";
   if (summary.added.length) {
-    html += "<h3>New companies (" + summary.added.length + ")</h3><ul>" + summary.added.slice(0, 8).map(function (row) {
+    html += "<h3>New representatives (" + summary.added.length + ")</h3><ul>" + summary.added.slice(0, 8).map(function (row) {
       return "<li>" + esc(row.company) + (row.repName ? " — " + esc(row.repName) : "") + "</li>";
     }).join("") + (summary.added.length > 8 ? "<li>" + (summary.added.length - 8) + " more</li>" : "") + "</ul>";
   }
@@ -267,7 +296,7 @@ function importRepsFromDatabase() {
     }).join("") + (summary.filled.length > 8 ? "<li>" + (summary.filled.length - 8) + " more</li>" : "") + "</ul>";
   }
   if (summary.kept.length) html += "<p class=\"mut\">" + summary.kept.length + " existing field" + (summary.kept.length === 1 ? "" : "s") + " left unchanged.</p>";
-  if (summary.skipped) html += "<p class=\"mut\">" + summary.skipped + " contact" + (summary.skipped === 1 ? "" : "s") + " skipped because the company was blank.</p>";
+  if (summary.skipped) html += "<p class=\"mut\">" + summary.skipped + " contact" + (summary.skipped === 1 ? "" : "s") + " skipped (blank company or invalid row).</p>";
   html += '<div class="actions"><button type="button" data-act="close">Cancel</button><button type="button" class="pri" id="btnConfirmImport">Import</button></div>';
   openModal(html);
   $("btnConfirmImport").onclick = function () { reps = result.reps; save(); closeModal(); render(); };

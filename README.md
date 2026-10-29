@@ -14,7 +14,7 @@ The same page exports one JSON backup of `surgicalInventory.v1`, `surgicalInvent
 
 `index.html` (repo root) is the inventory tracker: quantities, par levels, quote and order status, and a small rep address book. The header also links to Identify and Home.
 
-On the Reps tab, Import from Rep Database reads `supplyRepDatabase_v1` and merges contacts into `surgicalInventory.reps.v1` by company. A preview lists new companies and empty fields that would be filled. Names, phones, emails, and notes that already have text are left as they are. Conflicting people at the same company are skipped rather than combined. On GitHub Pages the pages share one origin, so both apps see the same `localStorage`.
+On the Reps tab, Import from Rep Database reads `supplyRepDatabase_v1` and merges contacts into `surgicalInventory.reps.v1`. Each representative becomes their own address-book row (matched by company plus name or email). A preview lists new representatives and empty fields that would be filled. Names, phones, emails, and notes that already have text are left as they are. On GitHub Pages the pages share one origin, so both apps see the same `localStorage`.
 
 Open `index.html` directly in a browser, or serve this folder and visit `/`. The site root stays the inventory tracker. Use `home.html` for the hub.
 
