@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1767a8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SPD Copilot">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Enrique — Surgical Instrument Inventory Tracker</title>
 <style>
 :root{--bg:#f4f7fa;--card:#fff;--ink:#1c2a39;--mut:#5d6b7a;--line:#dbe3eb;--pri:#1767a8;--pri2:#0f4f84;--dan:#b42318}
@@ -48,7 +53,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f6fafd}td.num{text-align:righ
 </style>
 </head>
 <body>
-<header><h1 id="title"></h1><nav><button id="navInv" class="active">Inventory</button><button id="navReps">Reps</button><a href="identify.html">Identify</a></nav></header>
+<header><h1 id="title"></h1><nav><button id="navInv" class="active">Inventory</button><button id="navReps">Reps</button><a href="identify.html">Identify</a><a href="home.html">Home</a></nav></header>
 <main>
 <section id="viewInv">
  <div class="cards" id="cards"></div>
@@ -64,11 +69,12 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f6fafd}td.num{text-align:righ
  <div id="tableArea"></div>
 </section>
 <section id="viewReps" class="hide">
- <div class="toolbar"><h2 style="margin:0;flex:1;font-size:18px">Rep Address Book</h2><button class="pri" id="btnAddRep">Add company</button></div>
+ <div class="toolbar"><h2 style="margin:0;flex:1;font-size:18px">Rep Address Book</h2><button class="pri" id="btnAddRep">Add company</button><button type="button" id="btnImportReps">Import from Rep Database</button></div>
  <div id="repsArea"></div>
 </section>
 </main>
 <div id="ov" class="ov hide"><div class="modal" id="modal"></div></div>
+<script src="spd-data.js"></script>
 <script>
 "use strict";
 const FACILITY_NAME = "Enrique";
@@ -237,6 +243,35 @@ function showRepForm(id){
     if (ix >= 0) { const old = reps[ix].company; if (old !== o.company) instruments.forEach(i => { if (i.distributor === old) i.distributor = o.company; }); reps[ix] = o; } else reps.push(o);
     save(); closeModal(); render(); });
 }
+var REP_FIELD_LABEL = { repName: "name", repPhone: "phone", repEmail: "email", notes: "notes" };
+function importRepsFromDatabase() {
+  if (!window.SPDData) { alert("The import helper did not load."); return; }
+  var raw;
+  try { raw = JSON.parse(localStorage.getItem("supplyRepDatabase_v1") || "null"); }
+  catch (e) { alert("The rep database on this device could not be read."); return; }
+  if (!Array.isArray(raw) || !raw.length) { alert("No rep database contacts found on this device. Open the Rep Database and save contacts first."); return; }
+  var result;
+  try { result = SPDData.mergeRepContacts(reps, raw, uid); }
+  catch (err) { alert("Import failed: " + err.message); return; }
+  var summary = result.summary;
+  if (!summary.added.length && !summary.filled.length) { alert("Nothing new to import. Existing address-book fields were left as they are."); return; }
+  var html = "<h2>Import from Rep Database</h2><p>Names, phones, emails, and notes that already have text stay as they are. Empty fields can be filled.</p>";
+  if (summary.added.length) {
+    html += "<h3>New companies (" + summary.added.length + ")</h3><ul>" + summary.added.slice(0, 8).map(function (row) {
+      return "<li>" + esc(row.company) + (row.repName ? " — " + esc(row.repName) : "") + "</li>";
+    }).join("") + (summary.added.length > 8 ? "<li>" + (summary.added.length - 8) + " more</li>" : "") + "</ul>";
+  }
+  if (summary.filled.length) {
+    html += "<h3>Empty fields to fill (" + summary.filled.length + ")</h3><ul>" + summary.filled.slice(0, 8).map(function (row) {
+      return "<li>" + esc(row.company) + ": " + esc(row.fields.map(function (field) { return REP_FIELD_LABEL[field.field] || field.field; }).join(", ")) + "</li>";
+    }).join("") + (summary.filled.length > 8 ? "<li>" + (summary.filled.length - 8) + " more</li>" : "") + "</ul>";
+  }
+  if (summary.kept.length) html += "<p class=\"mut\">" + summary.kept.length + " existing field" + (summary.kept.length === 1 ? "" : "s") + " left unchanged.</p>";
+  if (summary.skipped) html += "<p class=\"mut\">" + summary.skipped + " contact" + (summary.skipped === 1 ? "" : "s") + " skipped because the company was blank.</p>";
+  html += '<div class="actions"><button type="button" data-act="close">Cancel</button><button type="button" class="pri" id="btnConfirmImport">Import</button></div>';
+  openModal(html);
+  $("btnConfirmImport").onclick = function () { reps = result.reps; save(); closeModal(); render(); };
+}
 function deleteRep(id){
   const r = reps.find(x => x.id === id); if (!r) return; const c = linkedCount(r.company);
   const msg = c ? "Warning: " + c + " instrument(s) use \"" + r.company + "\" as distributor. They will keep the name as a custom distributor. Delete anyway?" : "Delete \"" + r.company + "\" from the address book?";
@@ -294,6 +329,7 @@ document.addEventListener("click", e => {
 function loadSample(){ if (instruments.length && !confirm("Add 6 sample instruments to your existing inventory?")) return; instruments = instruments.concat(sampleData()); save(); render(); }
 $("btnAdd").onclick = () => showForm();
 $("btnAddRep").onclick = () => showRepForm();
+$("btnImportReps").onclick = importRepsFromDatabase;
 $("btnSample").onclick = loadSample;
 $("btnExport").onclick = exportJSON;
 $("btnImport").onclick = () => $("fileImport").click();

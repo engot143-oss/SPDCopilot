@@ -1,12 +1,22 @@
 # SPDCopilot
 
-Two browser apps for sterile-processing supply work. Each one is a single HTML file. Contacts and inventory stay in the browser (`localStorage`). There is no build step.
+Browser tools for sterile-processing supply work. Each page is plain HTML. Contacts and inventory stay in the browser (`localStorage`). There is no build step and no server.
+
+## Home
+
+`home.html` links to the inventory tracker, instrument identification, and the rep database. Each of those pages has a Home link. `manifest.webmanifest` lets iPhone Safari add the hub to the Home Screen (Share, then Add to Home Screen). There is no separate icon image; the installed icon opens `home.html`.
+
+The same page exports one JSON backup of `surgicalInventory.v1`, `surgicalInventory.reps.v1`, `supplyRepDatabase_v1`, and `surgicalCopilot.idLog.v1`, then shows the last backup time. Import backup checks the JSON and replaces those lists only after confirmation. The identification API key (`surgicalCopilot.idSettings.v1`) is not exported or restored.
+
+`sw.js` caches `home.html`, `identify.html`, the inventory page, and the small `spd-data.js` helper. It registers only over `http` or `https`.
 
 ## Enrique Surgical Instrument Inventory Tracker
 
-`index.html` (repo root) is the inventory tracker: quantities, par levels, quote and order status, and a small rep address book. The header links to `identify.html`, which identifies one instrument from the rear camera or an uploaded photo. `sw.js` is an optional service worker that caches `index.html` and `identify.html` for offline use. It registers only when the page is opened over `http` or `https`.
+`index.html` (repo root) is the inventory tracker: quantities, par levels, quote and order status, and a small rep address book. The header also links to Identify and Home.
 
-Open `index.html` directly in a browser, or serve this folder and visit `/`.
+On the Reps tab, Import from Rep Database reads `supplyRepDatabase_v1` and merges contacts into `surgicalInventory.reps.v1` by company. A preview lists new companies and empty fields that would be filled. Names, phones, emails, and notes that already have text are left as they are. On GitHub Pages the pages share one origin, so both apps see the same `localStorage`.
+
+Open `index.html` directly in a browser, or serve this folder and visit `/`. The site root stays the inventory tracker. Use `home.html` for the hub.
 
 ### Instrument identification
 
@@ -20,6 +30,7 @@ Feedback is stored in `surgicalCopilot.idLog.v1`: the model answer, your correct
 
 ```bash
 node tests/identify-test.mjs
+node tests/home-data-test.mjs
 ```
 
 ## Supply Rep Database
@@ -38,4 +49,4 @@ node tests/parse-test.mjs
 
 In the repo on GitHub: **Settings → Pages → Build and deployment → Deploy from a branch**. Choose branch **main** and folder **/ (root)**, then save.
 
-The inventory tracker is the site root. The rep database is at `public/Rep_Database.html` on that same site.
+The inventory tracker is the site root. Open `home.html` on that site for the hub. The rep database is at `public/Rep_Database.html`. Add to Home Screen uses `home.html`.

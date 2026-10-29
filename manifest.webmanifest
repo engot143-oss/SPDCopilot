@@ -1,0 +1,10 @@
+{
+  "name": "SPD Copilot",
+  "short_name": "SPD Copilot",
+  "description": "Inventory, instrument identification, and supplier contacts. Data stays on this device.",
+  "start_url": "home.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fa",
+  "theme_color": "#1767a8"
+}
