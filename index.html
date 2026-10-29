@@ -9,7 +9,9 @@
 *{box-sizing:border-box}body{margin:0;font:15px/1.45 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
 header{background:#fff;border-bottom:1px solid var(--line);padding:14px 20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 header h1{font-size:19px;margin:0;font-weight:650}
-nav button{margin-left:4px}
+nav button,nav a{margin-left:4px}
+nav a{display:inline-block;text-decoration:none;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);padding:7px 12px;border-radius:6px}
+nav a:hover{border-color:var(--pri)}
 main{padding:16px 20px;max-width:1400px;margin:0 auto}
 button{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);padding:7px 12px;border-radius:6px;cursor:pointer}
 button:hover{border-color:var(--pri)}button.pri{background:var(--pri);color:#fff;border-color:var(--pri)}button.pri:hover{background:var(--pri2)}
@@ -46,7 +48,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f6fafd}td.num{text-align:righ
 </style>
 </head>
 <body>
-<header><h1 id="title"></h1><nav><button id="navInv" class="active">Inventory</button><button id="navReps">Reps</button></nav></header>
+<header><h1 id="title"></h1><nav><button id="navInv" class="active">Inventory</button><button id="navReps">Reps</button><a href="identify.html">Identify</a></nav></header>
 <main>
 <section id="viewInv">
  <div class="cards" id="cards"></div>
